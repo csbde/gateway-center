@@ -111,9 +111,13 @@ func (s *DeployService) Deploy(ctx context.Context, in DeployInput, actorID stri
 		return nil, httperr.Newf(403, "FORBIDDEN", "生产环境发布必须经审批链（release_requests），当前未启用审批服务")
 	}
 
-	// 漂移期间要求先重新 validate（US5 T072 完整化；此处基础版：drift=true 拒绝直发）
+	// 漂移期间要求先重新 validate（US5 T072：drift=true 时仅允许部署最新 ready 版本，
+	// 避免硬阻断死锁——发布最新 ready 即覆盖漂移使其恢复一致）。
 	if st, err := s.nodes.State(ctx, node.ID); err == nil && st.Drift {
-		return nil, httperr.PipelineBlocked("节点 " + node.Name + " 存在配置漂移，发布被阻止；请重新验证并生成新版本")
+		if latest, lerr := s.vers.LatestReady(ctx, node.ID); lerr != nil || latest.ID != v.ID {
+			return nil, httperr.PipelineBlocked("节点 " + node.Name +
+				" 存在配置漂移，请重新验证并生成新版本后再发布（仅允许部署最新 ready 版本以覆盖漂移）")
+		}
 	}
 
 	now := time.Now().UTC()
@@ -208,11 +212,8 @@ func (s *DeployService) run(ctx context.Context, node *domain.GatewayNode, v *do
 		return nil, httperr.Internal(err)
 	}
 	d.Status = "success"
-	// 成功即清除漂移并更新 actual/desired（宪章 XI）
-	if st, err := s.nodes.State(ctx, node.ID); err == nil {
-		st.DesiredVersion, st.ActualVersion, st.Drift, st.DriftDetail = v.Version, v.Version, false, nil
-		_ = s.nodes.UpsertState(ctx, st)
-	}
+	// 成功即清除漂移并更新 actual/desired（宪章 XI；列级更新避免覆写 probesvc 探测字段）
+	_ = s.nodes.UpdateDriftState(ctx, node.ID, false, nil, v.Version, v.Version)
 	s.audit.Record(ctx, nil, auditrec.Event{Action: "deploy_success", ResourceType: "deployment",
 		ResourceID: d.ID, ResourceName: fmt.Sprintf("%s v%d", node.Name, v.Version)})
 	return &DeployResult{DeploymentID: d.ID, Status: "success", Verification: verif}, nil

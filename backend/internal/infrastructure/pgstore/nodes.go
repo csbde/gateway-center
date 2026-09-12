@@ -59,6 +59,22 @@ func (r *NodeRepo) UpsertState(ctx context.Context, s *domain.NodeState) error {
 	return r.db.WithContext(ctx).Save(s).Error
 }
 
+// UpdateDriftState 列级更新漂移四字段（driftsvc / deploy 成功路径用）。
+// 只写 drift/drift_detail/desired_version/actual_version，不触碰 probesvc 负责的
+// status/loaded_*/last_probe_at 等列——避免与全行 UpsertState(Save) 的并发写互相覆写。
+// Select 强制写入零值（drift=false / drift_detail=nil 清除漂移）。
+func (r *NodeRepo) UpdateDriftState(ctx context.Context, nodeID string, drift bool, detail []map[string]any, desiredVer, actualVer int64) error {
+	return r.db.WithContext(ctx).Model(&domain.NodeState{}).
+		Where("node_id = ?", nodeID).
+		Select("drift", "drift_detail", "desired_version", "actual_version").
+		Updates(domain.NodeState{
+			Drift:          drift,
+			DriftDetail:    detail,
+			DesiredVersion: desiredVer,
+			ActualVersion:  actualVer,
+		}).Error
+}
+
 // HasDeployments 软删前置检查（UF-1：有部署记录拒删）。
 func (r *NodeRepo) HasDeployments(ctx context.Context, nodeID string) (bool, error) {
 	var cnt int64

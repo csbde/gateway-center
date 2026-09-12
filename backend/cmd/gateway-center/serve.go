@@ -24,6 +24,7 @@ import (
 	"gateway-center/backend/internal/application/credsvc"
 	"gateway-center/backend/internal/application/dashboardsvc"
 	"gateway-center/backend/internal/application/domainsvc"
+	"gateway-center/backend/internal/application/driftsvc"
 	"gateway-center/backend/internal/application/healthsvc"
 	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
@@ -141,9 +142,10 @@ func runServe(args []string) error {
 	}
 
 	// ---- scheduler：节点探测 + Target 健康 + 证书到期观测 ----
+	driftSvc := driftsvc.New(nodes, vers)
 	probe := probesvc.New(nodes, targets, probesvc.SettingsAdapter{
 		Snap: func() *domain.PlatformSettings { return settingsSvc.Current(context.Background()) },
-	}, probesvc.ClientFactory(traefikFactory))
+	}, probesvc.ClientFactory(traefikFactory), driftSvc)
 	health := healthsvc.New(targets, svcs)
 	certWatch := certwatch.New(certs, doms, certwatch.SettingsAdapter{
 		Snap: func() *domain.PlatformSettings { return settingsSvc.Current(context.Background()) },

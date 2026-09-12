@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"gateway-center/backend/internal/application/driftsvc"
 	"gateway-center/backend/internal/domain"
 	"gateway-center/backend/internal/infrastructure/pgstore"
 	"gateway-center/backend/internal/infrastructure/traefikapi"
@@ -21,7 +22,8 @@ type Service struct {
 	targets  *pgstore.TargetRepo
 	settings Settings
 	factory  ClientFactory
-	mu       sync.Mutex // 同节点探测不重叠
+	drift    *driftsvc.Service // 探测成功后比对漂移（T072；nil=跳过）
+	mu       sync.Mutex        // 同节点探测不重叠
 	running  map[string]bool
 }
 
@@ -41,8 +43,9 @@ func (a SettingsAdapter) ProbeInterval() time.Duration {
 }
 func (a SettingsAdapter) FailureThreshold() int { return a.Snap().OfflineThreshold }
 
-func New(nodes *pgstore.NodeRepo, targets *pgstore.TargetRepo, settings Settings, factory ClientFactory) *Service {
-	return &Service{nodes: nodes, targets: targets, settings: settings, factory: factory, running: map[string]bool{}}
+func New(nodes *pgstore.NodeRepo, targets *pgstore.TargetRepo, settings Settings, factory ClientFactory, drift *driftsvc.Service) *Service {
+	return &Service{nodes: nodes, targets: targets, settings: settings, factory: factory,
+		drift: drift, running: map[string]bool{}}
 }
 
 // RunOnce 探测全部节点（并发上限由 scheduler 的 sem 保证外层；此处仅防单节点重入）。
@@ -147,6 +150,10 @@ func (s *Service) probe(ctx context.Context, nodeID string) {
 		st.Status = "online"
 	}
 	_ = s.nodes.UpsertState(ctx, st)
+	// 仅在线时 actual 数据新鲜 → 比对漂移（T072；失败/禁用路径保留既有 drift 不触碰）
+	if s.drift != nil {
+		s.drift.Check(ctx, nodeID)
+	}
 }
 
 // markFailure 记录一次探测失败：连续达阈值→offline，否则 unknown。
