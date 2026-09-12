@@ -11,6 +11,7 @@ import (
 	"gateway-center/backend/internal/api/httperr"
 	"gateway-center/backend/internal/application/auditrec"
 	"gateway-center/backend/internal/domain"
+	"gateway-center/backend/internal/domain/depcheck"
 	"gateway-center/backend/internal/domain/mwreg"
 	"gateway-center/backend/internal/infrastructure/pgstore"
 )
@@ -190,18 +191,23 @@ func (s *Service) Delete(ctx context.Context, id, actorID string) *httperr.APIEr
 	if err != nil {
 		return httperr.Internal(err)
 	}
-	if len(refs) > 0 {
-		details := make([]httperr.Detail, 0, len(refs))
-		for _, r := range refs {
-			details = append(details, httperr.Detail{Field: "routes", Message: r.Name, ID: r.ID})
-		}
-		return httperr.DependencyBlocked("中间件 "+mw.Name, details)
+	rr := depcheck.RouteRefs(refs)
+	if depcheck.AnyRefs(rr) {
+		return httperr.DependencyBlocked("中间件 "+mw.Name, routeDetails(rr))
 	}
 	if err := s.mws.SoftDelete(ctx, id); err != nil {
 		return httperr.Internal(err)
 	}
 	s.audit.Record(ctx, nil, ev(actorID, "delete", id, mw.Name, mw, nil))
 	return nil
+}
+
+func routeDetails(refs []depcheck.RouteRef) []httperr.Detail {
+	out := make([]httperr.Detail, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, httperr.Detail{Field: "routes", Message: r.Name, ID: r.ID})
+	}
+	return out
 }
 
 func ev(actorID, action, rid, name string, before, after any) auditrec.Event {
