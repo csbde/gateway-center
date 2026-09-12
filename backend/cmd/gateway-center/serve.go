@@ -18,6 +18,7 @@ import (
 	"gateway-center/backend/internal/api"
 	"gateway-center/backend/internal/api/handlers"
 	"gateway-center/backend/internal/api/middleware"
+	"gateway-center/backend/internal/application/approvalsvc"
 	"gateway-center/backend/internal/application/auditrec"
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
@@ -85,6 +86,7 @@ func runServe(args []string) error {
 	routes := pgstore.NewRouteRepo(store.DB)
 	mws := pgstore.NewMiddlewareRepo(store.DB)
 	vers := pgstore.NewVersionRepo(store.DB)
+	approvals := pgstore.NewApprovalRepo(store.DB)
 	deploys := pgstore.NewDeploymentRepo(store.DB)
 	certs := pgstore.NewCertRepo(store.DB)
 	creds := pgstore.NewCredentialRepo(store.DB)
@@ -137,6 +139,7 @@ func runServe(args []string) error {
 		Versions:    versionSvc,
 		Deploys:     deploySvc,
 		Settings:    settingsSvc,
+		Approvals:   approvalsvc.New(approvals, vers, rec),
 		Vers:        vers,
 		Deps:        deploys,
 	}

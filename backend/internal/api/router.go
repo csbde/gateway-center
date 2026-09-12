@@ -58,6 +58,7 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 			r.Get("/versions/{id}/diff", h.DiffVersion)
 			r.Get("/deployments", h.ListDeployments)
 			r.Get("/deployments/{id}", h.GetDeployment)
+			r.Get("/release-requests", h.ListReleaseRequests)
 			r.Get("/settings", h.GetSettings)
 
 			// 业务实体增删改 + 管线：developer+（Viewer 零写入口，US6-AC1；
@@ -110,6 +111,10 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 				r.Post("/nodes/{id}/validate", h.ValidateNode)
 				r.Post("/nodes/{id}/versions", h.CreateVersion)
 				r.Post("/deployments", h.CreateDeployment)
+
+				// 发布审批：提交/撤回 developer+（approve/reject 在 gateway_admin+ 组）
+				r.Post("/release-requests", h.CreateReleaseRequest)
+				r.Post("/release-requests/{id}/cancel", h.CancelReleaseRequest)
 			})
 
 			// 治理动作：gateway_admin+（回滚=FR-031 权限矩阵；归档=US7 处置流）
@@ -119,6 +124,9 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 				r.Post("/routes/{id}/archive", h.ArchiveRoute)
 				// 高级模式语法验证（FR-015；保存路径的服务层复核在 routesvc.checkAdvanced）
 				r.Post("/routes/validate-advanced", h.ValidateAdvancedRoute)
+				// 发布审批：批准/驳回（自批守卫在 approvalsvc，FR-037）
+				r.Post("/release-requests/{id}/approve", h.ApproveReleaseRequest)
+				r.Post("/release-requests/{id}/reject", h.RejectReleaseRequest)
 			})
 
 			// 不可变记录：任何角色 DELETE 即 403（FR-032）

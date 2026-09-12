@@ -265,8 +265,12 @@ func (r *ApprovalRepo) Cancel(ctx context.Context, id, submitterID string) error
 	return nil
 }
 
-func (r *ApprovalRepo) List(ctx context.Context, q ListQuery) ([]domain.ReleaseRequest, int64, error) {
-	return listScanned[domain.ReleaseRequest](ctx, r.db.Model(&domain.ReleaseRequest{}), q, "created_at DESC")
+func (r *ApprovalRepo) List(ctx context.Context, q ListQuery, status string) ([]domain.ReleaseRequest, int64, error) {
+	db := r.db.Model(&domain.ReleaseRequest{})
+	if status != "" {
+		db = db.Where("status = ?", status)
+	}
+	return listScanned[domain.ReleaseRequest](ctx, db, q, "created_at DESC")
 }
 
 // ApprovedForVersion：production 部署门禁查询（R15 ApproveGate）。

@@ -13,6 +13,7 @@ import (
 	"gateway-center/backend/internal/api/httperr"
 	"gateway-center/backend/internal/api/middleware"
 	"gateway-center/backend/internal/api/queryutil"
+	"gateway-center/backend/internal/application/approvalsvc"
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
 	"gateway-center/backend/internal/application/credsvc"
@@ -42,6 +43,7 @@ type Handler struct {
 	Versions    *pipeline.VersionService
 	Deploys     *pipeline.DeployService
 	Settings    *settingsvc.Service
+	Approvals   *approvalsvc.Service
 	Vers        *pgstore.VersionRepo
 	Deps        *pgstore.DeploymentRepo
 	wg          sync.WaitGroup // 在途部署（graceful shutdown 等待）
