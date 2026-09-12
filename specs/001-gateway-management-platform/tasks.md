@@ -211,7 +211,7 @@
 - [X] T091 [P] 覆盖率门槛：管线相关包 ≥80% 入 backend/Makefile test-all（unit+contract+integration+e2e 串行）（R17/宪法合规审查）
 - [ ] T092 宪法符合性人工检查：执行 quickstart.md §5 表全部项（无反向 YAML 解析 grep、写路径仅 dynamic/、TestNoPipelineBypass、快照自包含用例、审计 revoke）并记录结果
 - [ ] T093 quickstart.md V-1~V-9 端到端全量回归（含 §2 全新环境可复现性）
-- [ ] T094 [P] 文档：README.md（启动、POSIX rename 共享卷前置、Static 预配要求）+ docs/runbook.md（备份/主密钥轮换/故障排查）
+- [X] T094 [P] 文档：README.md（启动、POSIX rename 共享卷前置、Static 预配要求）+ docs/runbook.md（备份/主密钥轮换/故障排查）
 - [ ] T095 SC-001 首次使用计时走查：新账号冷启动 15 分钟内完成服务+域名+路由+发布，结果与步骤截图记录于 docs/verification/sc-001.md（验收证据）
 - [X] T096 [P] UI 术语复查：普通页面零 Traefik 术语、术语仅现于高级模式/技术详情/Debug（FR-042，frontend/src/features 扫描）
 
