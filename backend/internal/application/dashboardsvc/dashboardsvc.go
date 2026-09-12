@@ -33,6 +33,7 @@ func New(nodes *pgstore.NodeRepo, doms *pgstore.DomainRepo, svcs *pgstore.Servic
 type Dashboard struct {
 	NodesOnline   int             `json:"nodes_online"`
 	NodesOffline  int             `json:"nodes_offline"`
+	NodesDegraded int             `json:"nodes_degraded"`
 	NodesDrift    int             `json:"nodes_drift"`
 	Counts        CountSummary    `json:"counts"`
 	ExpiringCerts []CertSummary   `json:"expiring_certificates"`
@@ -85,6 +86,8 @@ func (s *Service) Aggregate(ctx context.Context) (*Dashboard, error) {
 			d.NodesOnline++
 		case "offline":
 			d.NodesOffline++
+		case "degraded":
+			d.NodesDegraded++
 		}
 		if st.Drift {
 			d.NodesDrift++
