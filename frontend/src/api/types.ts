@@ -78,7 +78,8 @@ export interface Route {
   priority: number;
   status: "draft" | "enabled" | "disabled" | "archived";
   row_version: number;
-  middlewares?: { id: string; name: string; type: string; position: number }[];
+  /** 后端 RouteMiddleware 无 json tag → PascalCase 字段；position 即绑定顺序（FR-018）。 */
+  middlewares?: { MiddlewareID: string; Position: number }[];
 }
 
 export interface RouteView extends Route {
@@ -101,6 +102,35 @@ export interface ValidateResult {
   valid: boolean;
   issues: ValidationIssue[];
   route_count: number;
+}
+
+export type MiddlewareType =
+  | "security_headers"
+  | "ip_allowlist"
+  | "rate_limit"
+  | "redirect"
+  | "strip_prefix";
+
+export interface Middleware {
+  id: string;
+  node_id: string;
+  name: string;
+  type: MiddlewareType;
+  params: Record<string, unknown>;
+  enabled: boolean;
+  row_version: number;
+  created_at?: string;
+}
+
+export interface MiddlewareView extends Middleware {
+  referenced_by: string[];
+}
+
+export interface AdvancedValidateResult {
+  valid: boolean;
+  issues: { offset?: number; message: string }[];
+  risk_notice: string;
+  normalized_preview: string;
 }
 
 export interface ConfigVersion {

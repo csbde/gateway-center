@@ -10,6 +10,7 @@ import { NodesPage } from "@/features/nodes";
 import { DomainsPage } from "@/features/domains";
 import { ServicesPage } from "@/features/services";
 import { RoutesPage } from "@/features/routes";
+import { MiddlewaresPage } from "@/features/middlewares";
 import { DeploymentsPage } from "@/features/deployments";
 import { VersionsPage } from "@/features/versions";
 import { tokenStore } from "./api/session";
@@ -62,7 +63,7 @@ const routes = createRoute({
 const middlewares = createRoute({
   getParentRoute: () => shellRoute,
   path: "/middlewares",
-  component: () => <Placeholder title="Policy Library" />,
+  component: MiddlewaresPage,
 });
 const versions = createRoute({
   getParentRoute: () => shellRoute,

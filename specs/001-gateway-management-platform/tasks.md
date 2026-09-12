@@ -127,7 +127,7 @@
 - [X] T058 [US3] 生成链：backend/internal/generate/ Snapshot 增 middleware 段；routers/*.yml middlewares 数组顺序 == route_middlewares.position（FR-018/AC-005）；backend/internal/domain/validate 接入「被引用中间件 disabled→blocker」
 - [X] T059 [US3] backend/internal/domain/advrule/：高级模式表达式解析器+白名单验证（Host/HostRegexp/Path/PathPrefix/Headers/HeadersRegexp/Method + &&/||/括号）+ 归一化预览（FR-015）
 - [X] T060 [US3] POST /routes/validate-advanced + backend/internal/application/routesvc advanced 写路径：仅 gateway_admin+（403 守卫）、risk_notice 固定文案、每次使用写 advanced_edit 审计关联 route_id（FR-016/宪法 II/X）
-- [ ] T061 [P] [US3] 前端 Middlewares 页 frontend/src/features/middlewares/：五类类型化表单（zod per-type，错误定位字段）；frontend/src/features/routes/ 扩展：middleware 多选拖拽排序 + 高级模式编辑器（风险提示横幅 + 实时语法验证 + 预览）
+- [X] T061 [P] [US3] 前端 Middlewares 页 frontend/src/features/middlewares/：五类类型化表单（zod per-type，错误定位字段）；frontend/src/features/routes/ 扩展：middleware 多选拖拽排序 + 高级模式编辑器（风险提示横幅 + 实时语法验证 + 预览）
 - [ ] T062 [P] [US3] 单元测试：backend/internal/domain/mwreg/*_test.go（五类参数边界）、backend/internal/domain/advrule/*_test.go（文法边界）、backend/internal/generate/order_test.go（保序）
 - [ ] T063 [P] [US3] 集成：backend/tests/integration/middleware_test.go（V-3：复用两路由、删除 409 引用清单、advanced 审计、解绑后可删）+ E2E frontend/tests/e2e/middleware.spec.ts
 

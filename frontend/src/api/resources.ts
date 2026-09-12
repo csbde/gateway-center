@@ -6,6 +6,8 @@ import type {
   DiffResult,
   Domain,
   List,
+  Middleware,
+  MiddlewareView,
   Node,
   NodeState,
   PlatformSettings,
@@ -67,6 +69,19 @@ export const routesApi = {
   enable: (id: string, ev: number) => api.post<RouteView>(`/routes/${id}/enable`, { expected_version: ev }),
   disable: (id: string, ev: number) => api.post<RouteView>(`/routes/${id}/disable`, { expected_version: ev }),
   remove: (id: string) => api.delete<undefined>(`/routes/${id}`),
+  validateAdvanced: (rule: string) =>
+    api.post<import("./types").AdvancedValidateResult>("/routes/validate-advanced", { rule }),
+};
+
+// ---- middlewares（US3/T057：CRUD + 启停；GET/写响应均带 referenced_by） ----
+export const middlewaresApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<Middleware>>("/middlewares", q),
+  get: (id: string) => api.get<MiddlewareView>(`/middlewares/${id}`),
+  create: (body: Record<string, unknown>) => api.post<MiddlewareView>("/middlewares", body),
+  update: (id: string, body: Record<string, unknown>) => api.put<MiddlewareView>(`/middlewares/${id}`, body),
+  enable: (id: string, ev: number) => api.post<MiddlewareView>(`/middlewares/${id}/enable`, { expected_version: ev }),
+  disable: (id: string, ev: number) => api.post<MiddlewareView>(`/middlewares/${id}/disable`, { expected_version: ev }),
+  remove: (id: string) => api.delete<undefined>(`/middlewares/${id}`),
 };
 
 // ---- pipeline: versions / deployments ----
