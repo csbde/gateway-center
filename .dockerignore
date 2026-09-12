@@ -1,0 +1,13 @@
+.git
+node_modules
+frontend/node_modules
+frontend/dist
+backend/bin
+coverage
+*.log
+.env
+.env.*
+.local
+data
+specs
+docs

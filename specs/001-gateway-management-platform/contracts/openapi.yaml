@@ -1,0 +1,1769 @@
+openapi: 3.1.0
+info:
+  title: "Gateway Center API"
+  version: "1.0.0-phase1"
+  description: >-
+    Gateway Center 控制平面 REST API（一期）。Web UI 是本契约的唯一消费方（API First，FR-043），
+    契约与权限矩阵说明见 contracts/README.md。配置变更必须经过
+    validate → versions → diff → deploy(confirmed) → verification 管线（FR-023 / 宪法 IV）。
+    敏感字段（DNS 凭证、证书私钥、密码）在任何响应中仅以 fingerprint 或掩码呈现（FR-035 / 宪法 VIII）。
+servers:
+  - url: /api/v1
+
+tags:
+  - name: auth
+  - name: users
+  - name: nodes
+  - name: pipeline
+  - name: deployments
+  - name: approvals
+  - name: domains
+  - name: services
+  - name: routes
+  - name: middlewares
+  - name: credentials
+  - name: observability
+  - name: audit
+  - name: settings
+
+security:
+  - bearerJwt: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: "登录（平台自建账号；IP+用户名限速，R6）"
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: "登录成功"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenPair" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: "刷新令牌（旋转式，旧 refresh 立即作废）"
+      security: []
+      responses:
+        "200":
+          description: "新的令牌对"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenPair" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: "吊销当前会话"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+
+  /me:
+    get:
+      tags: [auth]
+      summary: "当前用户与其角色"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+
+  /users:
+    get:
+      tags: [users]
+      summary: "用户列表（Super Admin）"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [users]
+      summary: "创建用户并分配角色；权限变更写入审计（FR-038）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreate" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [users]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [users]
+      summary: "修改角色或禁用账号（禁用即时吊销会话）"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [super_admin, gateway_admin, developer, viewer] }
+                status: { type: string, enum: [active, disabled] }
+                expected_version: { type: integer }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [users]
+      summary: "软删除并吊销全部会话；历史审计以 actor 快照列保留可读性"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /nodes:
+    get:
+      tags: [nodes]
+      summary: "Gateway Nodes 列表（含运行状态，FR-002）"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [nodes]
+      summary: "创建节点并开始周期状态探测（AC-001 / UF-1）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GatewayNodeCreate" }
+      responses:
+        "201":
+          description: "已创建"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GatewayNode" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /nodes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [nodes]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GatewayNode" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [nodes]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [nodes]
+      summary: "软删除；存在关联 Deployment 时拒绝（UF-1）"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /nodes/{id}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [nodes]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /nodes/{id}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [nodes]
+      summary: "禁用节点；未完成部署冻结为 failed，其资源从生成中排除（Edge Case）"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /nodes/{id}/state:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [nodes]
+      summary: "实际态：状态、Traefik 版本、加载集合、Drift 与期望/实际版本（FR-002 / FR-040）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NodeState" }
+
+  /nodes/{id}/validate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [pipeline]
+      summary: "六类验证（Domain/Route/Service/Middleware/Dependency/生成产物，FR-024）；漂移期间发布前必须先重新验证"
+      responses:
+        "200":
+          description: "验证报告（passed=false 时含逐条 blocker，仍返回 200 以便 UI 展示）"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationReport" }
+
+  /nodes/{id}/versions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pipeline]
+      summary: "版本历史（FR-032）；列表不含 snapshot/artifact 大字段（SC-006）"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [pipeline]
+      summary: "生成 Config Version：pending → validating → ready（UF-4）"
+      responses:
+        "201":
+          description: "已生成"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigVersion" }
+        "422":
+          $ref: "#/components/responses/PipelineBlocked"
+          description: "验证未通过，逐条报告且不可生成（AC-007）"
+
+  /versions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pipeline]
+      summary: "版本详情（自包含快照与生成产物；产物零明文 secret，R7/R8）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigVersion" }
+    delete:
+      tags: [pipeline]
+      summary: "任何角色一律拒绝（FR-032 / US7-AC3）"
+      responses:
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /versions/{id}/diff:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: against
+        in: query
+        schema: { type: string, format: uuid }
+        description: "对比目标版本；缺省为当前最新 success/ready 版本。任意两版本可对比（FR-032）"
+    get:
+      tags: [pipeline]
+      summary: "资源级差异（router/service/middleware/tlsconfig 的新增、修改、删除，AC-008 / US2-AC2）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiffReport" }
+
+  /deployments:
+    get:
+      tags: [deployments]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/NodeId"
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, validating, ready, deploying, success, failed] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [deployments]
+      summary: >-
+        发布。服务端强制门禁：confirmed=false → 422；production 缺已批准 ReleaseRequest → 422；
+        节点离线 → 422（恢复后须人工重新确认，不自动补发）；同节点已有非终态部署 → 409。
+        Developer 仅可对非 production 节点直发（FR-037）。
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeployRequest" }
+      responses:
+        "202":
+          description: "已受理，异步执行管线"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Deployment" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/PipelineBlocked" }
+
+  /deployments/rollback:
+    post:
+      tags: [deployments]
+      summary: "回滚：以历史成功版本快照复用同一管线重新发布，生成新 Deployment 与新版本记录（FR-031 / AC-012 / SC-003）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RollbackRequest" }
+      responses:
+        "202":
+          description: "已受理"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Deployment" }
+        "422": { $ref: "#/components/responses/PipelineBlocked" }
+
+  /deployments/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [deployments]
+      summary: "部署状态与运行时校验结果（FR-030：写入成功不等于生效）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Deployment" }
+    delete:
+      tags: [deployments]
+      summary: "不可删除类资源（FR-032）"
+      responses:
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /release-requests:
+    get:
+      tags: [approvals]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected, cancelled] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [approvals]
+      summary: "提交 production 发布申请（版本须 ready）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseRequestCreate" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "422": { $ref: "#/components/responses/PipelineBlocked" }
+
+  /release-requests/{id}/approve:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [approvals]
+      summary: "批准。批准人 MUST NOT 为提交人本人（DB CHECK 兜底）；审计同时记录提交人与批准人（US6-AC3）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovalDecision" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "422": { $ref: "#/components/responses/PipelineBlocked" }
+
+  /release-requests/{id}/reject:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [approvals]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovalDecision" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /release-requests/{id}/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [approvals]
+      summary: "提交人撤回申请"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /domains:
+    get:
+      tags: [domains]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/NodeId"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [domains]
+      summary: "创建域名（普通/泛域名，节点内唯一，FR-005）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DomainUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: "含泛域名 + acme_http 策略拒绝（FR-034）"
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /domains/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [domains]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Domain" }
+    put:
+      tags: [domains]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [domains]
+      summary: "软删除；被未归档 Route 引用时 409 并返回引用清单（FR-039 / AC-015）"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /domains/{id}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [domains]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /domains/{id}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [domains]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /domains/{id}/certificate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [domains]
+      summary: "证书只读观测（状态、到期、SAN；平台不管生命周期，FR-033）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertificateView" }
+
+  /certificates/import:
+    post:
+      tags: [domains]
+      summary: "导入自有证书（私钥 AES-256-GCM 入库，永不出响应）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportCertRequest" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /services:
+    get:
+      tags: [services]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/NodeId"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [services]
+      summary: "创建 Service（统一抽象，不区分 Docker/主机/远程，FR-009）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /services/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [services]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpstreamService" }
+    put:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [services]
+      summary: "软删除；被引用时 409 + 引用路由清单（FR-039）"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /services/{id}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /services/{id}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /services/{id}/targets:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [services]
+      summary: "添加 Target（地址格式与重复校验，UF-2 / AC-003）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TargetUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: "地址非法或重复"
+
+  /services/{id}/targets/{targetId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: targetId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [services]
+      summary: "软删除 Target"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+
+  /services/{id}/targets/{targetId}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: targetId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /services/{id}/targets/{targetId}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: targetId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [services]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /routes:
+    get:
+      tags: [routes]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/NodeId"
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, enabled, disabled, archived] }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [routes]
+      summary: >-
+        创建路由草稿。simple 模式返回系统合成规则预览（FR-014，用户不书写语法）；
+        advanced 模式仅 Gateway Admin 及以上，越权 403；保存即执行语法与引用校验（Edge Case：两次拦截之一）。
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RouteUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /routes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [routes]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Route" }
+    put:
+      tags: [routes]
+      summary: "编辑路由（含 Middleware 顺序）；advanced 模式每次使用强制审计（宪法 X）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RouteUpsert" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [routes]
+      summary: "软删除（通常走 archive 路径）"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+
+  /routes/{id}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [routes]
+      summary: "draft/enabled 状态机迁移（FR-017）；目标资源非法则 422"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "422": { $ref: "#/components/responses/PipelineBlocked" }
+
+  /routes/{id}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [routes]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /routes/{id}/archive:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [routes]
+      summary: "归档（不影响历史版本快照，FR-017）"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /routes/validate-advanced:
+    post:
+      tags: [routes]
+      summary: "高级模式语法验证（Host/Path/PathPrefix/HostRegexp/Headers/Method 与或非组合，FR-015）；纯校验不写入"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdvancedRuleValidateRequest" }
+      responses:
+        "200":
+          description: "验证结果与风险提示文案"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdvancedRuleValidateResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /middlewares:
+    get:
+      tags: [middlewares]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/NodeId"
+        - name: type
+          in: query
+          schema: { $ref: "#/components/schemas/MiddlewareType" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    post:
+      tags: [middlewares]
+      summary: "创建中间件（一期五类，FR-021）；参数按类型独立校验，错误定位到字段"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MiddlewareUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /middlewares/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [middlewares]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Middleware" }
+    put:
+      tags: [middlewares]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [middlewares]
+      summary: "软删除；被 N 条路由引用则阻止并逐条列出（US3-AC3 / AC-015）"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /middlewares/{id}/enable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [middlewares]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /middlewares/{id}/disable:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [middlewares]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /credentials:
+    get:
+      tags: [credentials]
+      summary: "凭证列表（仅元数据 + fingerprint）"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [credentials]
+      summary: "创建 DNS Provider 等凭证（写入即加密）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SecretCredentialUpsert" }
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /credentials/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [credentials]
+      summary: "不回显任何明文值（FR-035）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SecretCredential" }
+    put:
+      tags: [credentials]
+      summary: "轮换凭证：更新值与 fingerprint，域名绑定关系不变（FR-035）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SecretCredentialUpsert" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+    delete:
+      tags: [credentials]
+      summary: "删除；被域名引用时 409"
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /credentials/{id}/verify:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [credentials]
+      summary: "校验 provider 凭证可用性；失败仅返回原因，不回显凭证（Edge Case）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CredentialVerifyResponse" }
+
+  /dashboard:
+    get:
+      tags: [observability]
+      summary: "Dashboard 汇总：在线/离线/漂移节点、资源计数、证书到期预警、最近发布（FR-041）"
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+
+  /audit-logs:
+    get:
+      tags: [audit]
+      summary: "审计检索（只读，任何角色不可修改或删除，FR-038 / NFR-AUD-01）"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: actor
+          in: query
+          schema: { type: string }
+        - name: action
+          in: query
+          schema: { $ref: "#/components/schemas/AuditAction" }
+        - name: resource_type
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  /audit-logs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [audit]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditLog" }
+
+  /settings:
+    get:
+      tags: [settings]
+      responses:
+        "200":
+          description: "ok"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSettings" }
+    put:
+      tags: [settings]
+      summary: "平台设置（时区、探测周期、离线阈值、到期预警天数）"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformSettings" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      in: query
+      name: page_size
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Q:
+      in: query
+      name: q
+      schema: { type: string }
+      description: "名称/关键字模糊检索"
+    NodeId:
+      in: query
+      name: node_id
+      schema: { type: string, format: uuid }
+      description: "节点作用域过滤（节点类资源建议必带，FR-004）"
+
+  responses:
+    Ok:
+      description: "ok"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items: { type: object }
+              page: { type: integer }
+              page_size: { type: integer }
+              total: { type: integer }
+    Created:
+      description: "已创建"
+      content:
+        application/json:
+          schema: { type: object }
+    NoContent:
+      description: "无内容"
+    BadRequest:
+      description: "字段或类型参数校验失败（错误定位到字段，NFR-USE-01）"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: "未认证或会话失效"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: "RBAC 拒绝（FR-036）"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "资源不存在或已软删除"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: "乐观锁冲突 / 依赖阻断（含引用方清单）/ 同节点并发部署"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PipelineBlocked:
+      description: "管线阻断：验证失败、未确认预览、审批缺失、节点离线（宪法 IV 无旁路）"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              examples: [VALIDATION_FAILED, DEPENDENCY_BLOCKED, PIPELINE_BLOCKED, CONCURRENT_EDIT, NOT_FOUND]
+            message:
+              type: string
+              description: "含资源定位与可执行修复建议（NFR-USE-01）"
+            request_id: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  hint: { type: string }
+                  resource:
+                    type: string
+                    description: "引用方资源标识（依赖检查 409 时构成清单）"
+
+    PageMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+
+    Timestamps:
+      type: object
+      properties:
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        created_by: { type: string, format: uuid }
+        row_version:
+          type: integer
+          description: "乐观锁版本号；写请求须回传 expected_version（R10）"
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, writeOnly: true }
+
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string, description: "JWT HS256，有效期 2h" }
+        refresh_token: { type: string, description: "有效期 7d，旋转式作废" }
+        expires_in: { type: integer }
+        user: { $ref: "#/components/schemas/User" }
+
+    User:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            display_name: { type: string }
+            role: { type: string, enum: [super_admin, gateway_admin, developer, viewer] }
+            status: { type: string, enum: [active, disabled] }
+            last_login_at: { type: string, format: date-time }
+
+    UserCreate:
+      type: object
+      required: [username, display_name, password, role]
+      properties:
+        username: { type: string, pattern: "^[a-z0-9_.-]{3,32}$" }
+        display_name: { type: string, maxLength: 64 }
+        password: { type: string, minLength: 12, writeOnly: true }
+        role: { type: string, enum: [super_admin, gateway_admin, developer, viewer] }
+
+    GatewayNode:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string, maxLength: 64 }
+            base_url: { type: string, description: "Traefik Dashboard/API 地址" }
+            deploy_root: { type: string, description: "dynamic 配置根路径（FileDeployer，R4）" }
+            env_type: { type: string, enum: [development, test, staging, production] }
+            remark: { type: string, maxLength: 256 }
+            enabled: { type: boolean }
+            api_auth:
+              type: object
+              description: "仅 configured 与 fingerprint 元数据，值不回显（FR-035）"
+              properties:
+                configured: { type: boolean }
+                fingerprint: { type: string }
+            state: { $ref: "#/components/schemas/NodeState" }
+
+    GatewayNodeCreate:
+      type: object
+      required: [name, base_url, deploy_root, env_type]
+      properties:
+        name: { type: string }
+        base_url: { type: string, format: uri }
+        deploy_root: { type: string }
+        env_type: { type: string, enum: [development, test, staging, production] }
+        remark: { type: string }
+        api_auth:
+          type: object
+          writeOnly: true
+          description: "创建或编辑时整体替换；任何响应不含明文"
+          properties:
+            username: { type: string }
+            password: { type: string }
+
+    NodeState:
+      type: object
+      description: "Actual State，与期望态分离存储与展示（FR-040）"
+      properties:
+        status: { type: string, enum: [online, offline, degraded, unknown] }
+        traefik_version: { type: string }
+        last_probe_at: { type: string, format: date-time }
+        last_online_at: { type: string, format: date-time }
+        loaded_counts:
+          type: object
+          properties:
+            routers: { type: integer }
+            services: { type: integer }
+            middlewares: { type: integer }
+        drift: { type: boolean }
+        drift_detail:
+          type: array
+          items: { $ref: "#/components/schemas/DiffItem" }
+        desired_version: { type: integer }
+        actual_version: { type: integer }
+
+    Domain:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            node_id: { type: string, format: uuid }
+            name:
+              type: string
+              description: "普通域名或泛域名（最左仅允许单个 *）"
+              pattern: "^(\\*\\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$"
+            is_wildcard: { type: boolean }
+            https_policy: { type: string, enum: [off, acme_http, acme_dns, imported] }
+            cert_resolver_ref: { type: string, description: "acme_* 时引用节点 static 预配 resolver（宪法 III/VII）" }
+            dns_credential_id: { type: string, format: uuid, description: "acme_dns 必填；泛域名强制该方式（FR-034）" }
+            imported_cert_id: { type: string, format: uuid }
+            expiry_warn_days: { type: integer, default: 30 }
+            enabled: { type: boolean }
+            certificate: { $ref: "#/components/schemas/CertificateView" }
+
+    DomainUpsert:
+      type: object
+      required: [name, node_id, https_policy]
+      properties:
+        name: { type: string }
+        node_id: { type: string, format: uuid }
+        https_policy: { type: string, enum: [off, acme_http, acme_dns, imported] }
+        cert_resolver_ref: { type: string }
+        dns_credential_id: { type: string, format: uuid }
+        imported_cert_id: { type: string, format: uuid }
+        expiry_warn_days: { type: integer, minimum: 1, maximum: 365 }
+        expected_version: { type: integer }
+
+    CertificateView:
+      type: object
+      description: "证书只读观测（申请/续期由 Traefik 或 Provider 负责，FR-033）"
+      properties:
+        source: { type: string, enum: [acme, imported, none] }
+        status: { type: string, enum: [valid, expiring_soon, expired, missing, unknown] }
+        not_before: { type: string, format: date-time }
+        not_after: { type: string, format: date-time }
+        issuer: { type: string }
+        sans:
+          type: array
+          items: { type: string }
+        observed_at: { type: string, format: date-time }
+
+    ImportCertRequest:
+      type: object
+      required: [name, cert_pem, key_pem]
+      properties:
+        name: { type: string }
+        cert_pem: { type: string, writeOnly: true }
+        key_pem:
+          type: string
+          writeOnly: true
+          description: "入库即 AES-256-GCM 加密（R7），永不出现在响应/日志/Diff"
+
+    UpstreamService:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            node_id: { type: string, format: uuid }
+            name: { type: string, pattern: "^[a-z0-9-]{1,63}$" }
+            description: { type: string }
+            enabled: { type: boolean }
+            healthcheck: { $ref: "#/components/schemas/HealthcheckSpec" }
+            aggregate_health:
+              type: string
+              enum: [healthy, degraded, down, unknown]
+              description: "按启用 Target 聚合（FR-011）"
+            targets:
+              type: array
+              items: { $ref: "#/components/schemas/Target" }
+
+    ServiceUpsert:
+      type: object
+      required: [name, node_id]
+      properties:
+        name: { type: string }
+        node_id: { type: string, format: uuid }
+        description: { type: string }
+        healthcheck: { $ref: "#/components/schemas/HealthcheckSpec" }
+        expected_version: { type: integer }
+
+    HealthcheckSpec:
+      type: object
+      properties:
+        path: { type: string, default: "/" }
+        interval_sec: { type: integer, minimum: 5, maximum: 600, default: 30 }
+        timeout_sec: { type: integer, minimum: 1, maximum: 30, default: 2 }
+        expected_codes: { type: string, default: "2xx-3xx" }
+
+    Target:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url:
+          type: string
+          description: "http(s)://host:port，一期协议限 HTTP/HTTPS（FR-010）"
+        weight: { type: integer, minimum: 1, maximum: 65535 }
+        enabled: { type: boolean }
+        health_status: { type: string, enum: [up, down, unknown] }
+        health_checked_at: { type: string, format: date-time }
+
+    TargetUpsert:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
+        weight: { type: integer, minimum: 1, maximum: 65535 }
+        enabled: { type: boolean }
+        expected_version: { type: integer }
+
+    MiddlewareBinding:
+      type: object
+      required: [middleware_id, position]
+      properties:
+        middleware_id: { type: string, format: uuid }
+        position:
+          type: integer
+          minimum: 0
+          description: "执行顺序，发布产物保序（FR-018）"
+        name: { type: string, description: "只读回显" }
+        type: { $ref: "#/components/schemas/MiddlewareType" }
+
+    Route:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            node_id: { type: string, format: uuid }
+            name: { type: string }
+            mode: { type: string, enum: [simple, advanced] }
+            domain_id: { type: string, format: uuid }
+            path: { type: string }
+            match_type: { type: string, enum: [exact, prefix] }
+            service_id: { type: string, format: uuid }
+            https: { type: boolean }
+            priority: { type: integer }
+            advanced_rule:
+              type: string
+              description: "仅 advanced 模式；Gateway Admin 及以上（FR-015/016）"
+            generated_rule_preview:
+              type: string
+              description: "系统合成的底层规则预览（FR-014，用户无需书写）"
+            status: { type: string, enum: [draft, enabled, disabled, archived] }
+            middlewares:
+              type: array
+              items: { $ref: "#/components/schemas/MiddlewareBinding" }
+            load_confirmed:
+              type: boolean
+              description: "网关侧实际加载确认；与平台意图分列展示（US5-AC3）"
+
+    RouteUpsert:
+      type: object
+      required: [name, node_id, mode, service_id]
+      properties:
+        name: { type: string }
+        node_id: { type: string, format: uuid }
+        mode: { type: string, enum: [simple, advanced] }
+        domain_id: { type: string, format: uuid }
+        path: { type: string }
+        match_type: { type: string, enum: [exact, prefix] }
+        service_id: { type: string, format: uuid }
+        https: { type: boolean }
+        priority: { type: integer }
+        advanced_rule: { type: string }
+        middlewares:
+          type: array
+          items: { $ref: "#/components/schemas/MiddlewareBinding" }
+        expected_version: { type: integer }
+
+    AdvancedRuleValidateRequest:
+      type: object
+      required: [rule]
+      properties:
+        rule: { type: string }
+
+    AdvancedRuleValidateResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              offset: { type: integer }
+              message: { type: string }
+        risk_notice:
+          type: string
+          description: "固定风险提示文案（FR-016 四项之一）"
+        normalized_preview: { type: string }
+
+    MiddlewareType:
+      type: string
+      enum: [security_headers, ip_allowlist, rate_limit, redirect, strip_prefix]
+
+    Middleware:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            node_id: { type: string, format: uuid }
+            name: { type: string }
+            type: { $ref: "#/components/schemas/MiddlewareType" }
+            params:
+              type: object
+              description: "按类型独立校验的结构化参数；字段定义见 data-model.md §7"
+            enabled: { type: boolean }
+            referenced_by:
+              type: array
+              description: "引用该中间件的路由名（删除阻断时构成清单，AC-015）"
+              items: { type: string }
+
+    MiddlewareUpsert:
+      type: object
+      required: [name, node_id, type, params]
+      properties:
+        name: { type: string }
+        node_id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/MiddlewareType" }
+        params: { type: object }
+        expected_version: { type: integer }
+
+    ValidationIssue:
+      type: object
+      required: [category, code, message, severity]
+      properties:
+        category:
+          type: string
+          enum: [domain, route, service, middleware, dependency, generated]
+          description: "六类验证（FR-024）"
+        resource: { type: string, description: "资源名，便于定位（NFR-USE-01）" }
+        resource_id: { type: string, format: uuid }
+        code: { type: string }
+        message: { type: string }
+        hint: { type: string, description: "可执行修复建议" }
+        severity: { type: string, enum: [blocker, warning] }
+
+    ValidationReport:
+      type: object
+      required: [passed, issues]
+      properties:
+        node_id: { type: string, format: uuid }
+        passed:
+          type: boolean
+          description: "存在任一 blocker 即 false，发布阻断（AC-007）"
+        issues:
+          type: array
+          items: { $ref: "#/components/schemas/ValidationIssue" }
+        checked_at: { type: string, format: date-time }
+
+    ConfigVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        node_id: { type: string, format: uuid }
+        version: { type: integer, description: "节点内单调递增" }
+        status:
+          type: string
+          enum: [pending, validating, ready]
+          description: "UF-4 状态迁移"
+        origin: { type: string, enum: [forward, rollback] }
+        source_version_id: { type: ["string", "null"], format: uuid }
+        parent_version_id: { type: ["string", "null"], format: uuid }
+        changes_summary:
+          type: array
+          items: { $ref: "#/components/schemas/DiffItem" }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        snapshot:
+          type: object
+          description: "自包含业务快照（回滚不依赖当前库状态）；仅详情端点返回"
+        artifact_files:
+          type: object
+          additionalProperties: { type: string }
+          description: "生成的 Traefik dynamic YAML 文件集合；零明文 secret（R7/R8）"
+
+    DiffItem:
+      type: object
+      properties:
+        change: { type: string, enum: [added, modified, removed] }
+        kind: { type: string, enum: [router, service, middleware, tlsconfig] }
+        resource_id: { type: string }
+        name: { type: string }
+        before: { type: object }
+        after: { type: object }
+
+    DiffReport:
+      type: object
+      properties:
+        from_version: { type: integer }
+        to_version: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DiffItem" }
+        confirmed:
+          type: boolean
+          description: "UI 据此启用发布按钮；未确认发布将 422（AC-008）"
+
+    DeployRequest:
+      type: object
+      required: [config_version_id, confirmed]
+      properties:
+        config_version_id: { type: string, format: uuid }
+        confirmed:
+          type: boolean
+          description: "必须为 true；false 即 422（不存在未预览的发布路径）"
+        approval_id: { type: string, format: uuid, description: "production 节点必填" }
+
+    RollbackRequest:
+      type: object
+      required: [target_version_id, confirmed]
+      properties:
+        target_version_id: { type: string, format: uuid }
+        confirmed: { type: boolean }
+
+    Deployment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        node_id: { type: string, format: uuid }
+        config_version_id: { type: string, format: uuid }
+        trigger: { type: string, enum: [deploy, rollback, retry] }
+        status:
+          type: string
+          enum: [pending, validating, ready, deploying, success, failed]
+          description: "FR-028；记录不可删除（FR-032）"
+        confirmed_by: { type: string, format: uuid }
+        confirmed_at: { type: string, format: date-time }
+        approval_id: { type: ["string", "null"], format: uuid }
+        error_code: { type: string }
+        error_message: { type: string }
+        verification_result: { $ref: "#/components/schemas/VerificationResult" }
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              at: { type: string, format: date-time }
+              stage: { type: string }
+              message: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    VerificationResult:
+      type: object
+      description: "运行时校验，独立于文件写入成功（FR-030 / 宪法 XI）"
+      properties:
+        passed: { type: boolean }
+        actual_version: { type: integer }
+        expected:
+          type: object
+          properties:
+            routers: { type: integer }
+            services: { type: integer }
+            middlewares: { type: integer }
+        actual:
+          type: object
+          properties:
+            routers: { type: integer }
+            services: { type: integer }
+            middlewares: { type: integer }
+        diff:
+          type: array
+          items: { $ref: "#/components/schemas/DiffItem" }
+        last_known_good_version: { type: integer, description: "失败时供回滚指引（Edge Case）" }
+        elapsed_ms: { type: integer }
+
+    ReleaseRequestCreate:
+      type: object
+      required: [node_id, config_version_id]
+      properties:
+        node_id: { type: string, format: uuid }
+        config_version_id: { type: string, format: uuid }
+        comment: { type: string }
+
+    ApprovalDecision:
+      type: object
+      properties:
+        comment: { type: string }
+
+    ReleaseRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        node_id: { type: string, format: uuid }
+        config_version_id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, approved, rejected, cancelled] }
+        submitted_by: { type: string, format: uuid }
+        reviewed_by:
+          type: string
+          format: uuid
+          description: "MUST NOT 等于 submitted_by（FR-037，DB CHECK 兜底）"
+        comment: { type: string }
+
+    SecretCredential:
+      allOf:
+        - $ref: "#/components/schemas/Timestamps"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            kind: { type: string, enum: [dns_provider, traefik_api, other] }
+            provider: { type: string }
+            fingerprint:
+              type: string
+              description: "明文 SHA-256 前 8 位；轮换后更新，值永不可读（FR-035）"
+
+    SecretCredentialUpsert:
+      type: object
+      required: [name, kind, provider, data]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [dns_provider, traefik_api, other] }
+        provider: { type: string }
+        data:
+          type: object
+          writeOnly: true
+          additionalProperties: { type: string }
+
+    CredentialVerifyResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        reason:
+          type: string
+          description: "provider 拒绝时仅报告原因，不回显凭证（Edge Case）"
+
+    Dashboard:
+      type: object
+      properties:
+        nodes_online: { type: integer }
+        nodes_offline: { type: integer }
+        nodes_drift: { type: integer }
+        counts:
+          type: object
+          properties:
+            domains: { type: integer }
+            routes: { type: integer }
+            services: { type: integer }
+            middlewares: { type: integer }
+        expiring_certificates:
+          type: array
+          items:
+            type: object
+            properties:
+              domain: { type: string }
+              not_after: { type: string, format: date-time }
+              days_left: { type: integer }
+        recent_deployments:
+          type: array
+          items: { $ref: "#/components/schemas/Deployment" }
+
+    AuditAction:
+      type: string
+      enum:
+        - create
+        - update
+        - delete
+        - enable
+        - disable
+        - archive
+        - deploy
+        - rollback
+        - approve
+        - reject
+        - cert_policy_change
+        - permission_change
+        - advanced_edit
+        - login
+
+    AuditLog:
+      type: object
+      properties:
+        id: { type: string }
+        occurred_at: { type: string, format: date-time }
+        actor_id: { type: string, format: uuid }
+        actor_username: { type: string, description: "快照列，用户删除后仍可解释" }
+        action: { $ref: "#/components/schemas/AuditAction" }
+        resource_type: { type: string }
+        resource_id: { type: string }
+        resource_name: { type: string }
+        before:
+          type: object
+          description: "操作前数据（已脱敏，FR-038）"
+        after:
+          type: object
+          description: "操作后数据（已脱敏）"
+        ip: { type: string }
+        user_agent: { type: string }
+        request_id: { type: string }
+
+    PlatformSettings:
+      type: object
+      properties:
+        timezone: { type: string, default: "Asia/Shanghai" }
+        probe_interval_sec: { type: integer, default: 30 }
+        probe_offline_threshold: { type: integer, default: 3 }
+        cert_expiry_warn_days: { type: integer, default: 30 }
+        ui_language: { type: string, default: "zh-CN" }
+
+x-view-pages:
+  # FR-041 页面 ↔ API 对齐证明（API First / 原则 XII 检查用，见 quickstart §5）
+  Dashboard:
+    - /dashboard
+    - "/nodes/{id}/state"
+    - /deployments
+  GatewayNodes:
+    - /nodes
+    - "/nodes/{id}"
+    - "/nodes/{id}/state"
+  Domains:
+    - /domains
+    - "/domains/{id}"
+    - "/domains/{id}/certificate"
+    - /certificates/import
+  Services:
+    - /services
+    - "/services/{id}"
+    - "/services/{id}/targets"
+  Routes:
+    - /routes
+    - "/routes/{id}"
+    - /routes/validate-advanced
+  Middlewares:
+    - /middlewares
+    - "/middlewares/{id}"
+  Deployments:
+    - /deployments
+    - "/deployments/{id}"
+    - /deployments/rollback
+  ConfigVersions:
+    - "/nodes/{id}/versions"
+    - "/versions/{id}"
+    - "/versions/{id}/diff"
+  AuditLogs:
+    - /audit-logs
+    - "/audit-logs/{id}"
+  Settings:
+    - /settings
+    - /users
+    - /credentials
+    - "/credentials/{id}/verify"

@@ -1,0 +1,38 @@
+# Go
+*.exe
+*.test
+*.out
+*.prof
+vendor/
+backend/bin/
+backend/coverage.out
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+*.log
+
+# Env & secrets (宪法 VIII：主密钥/凭证绝不入库)
+.env
+.env.*
+*.key
+*.crt
+secrets/
+
+# Local runtime data (共享卷测试目录)
+.local/
+data/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# CodeGraph 本地索引（生成物，不入库）
+.codegraph/
+.claude/settings.local.json
