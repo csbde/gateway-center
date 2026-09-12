@@ -137,7 +137,9 @@ export function Modal({
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
+      {/* container 显式指向 document.body：Portal 默认容器与表单所在 Document 不一致时，
+          React Hook Form 的 ref 收集失效（handleSubmit 拿到 undefined）。 */}
+      <Dialog.Portal container={document.body}>
         <Dialog.Overlay className="fixed inset-0 bg-black/40" />
         <Dialog.Content
           className={cx(

@@ -76,6 +76,8 @@ export const pipelineApi = {
     api.get<DiffResult>(`/versions/${id}/diff`, against ? { against } : undefined),
   deploy: (body: { node_id: string; version_id: string; confirmed: boolean }) =>
     api.post<Deployment>("/deployments", body),
+  rollback: (body: { node_id: string; version_id: string; confirmed: boolean }) =>
+    api.post<Deployment>("/deployments/rollback", body),
   deployment: (id: string) => api.get<Deployment>(`/deployments/${id}`),
   deployments: (q?: Record<string, string | number>) => api.get<List<Deployment>>("/deployments", q),
 };

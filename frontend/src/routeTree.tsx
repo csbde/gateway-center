@@ -11,6 +11,7 @@ import { DomainsPage } from "@/features/domains";
 import { ServicesPage } from "@/features/services";
 import { RoutesPage } from "@/features/routes";
 import { DeploymentsPage } from "@/features/deployments";
+import { VersionsPage } from "@/features/versions";
 import { tokenStore } from "./api/session";
 
 function requireAuth() {
@@ -25,9 +26,10 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
+// 壳层用无路径（pathless）布局路由：children 各自声明 path，"/" 仅属 dash，避免与壳层 id 冲突。
 const shellRoute = createRoute({
   getParentRoute: () => RootRoute,
-  path: "/",
+  id: "shell",
   component: AppShell,
   beforeLoad: requireAuth,
 });
@@ -65,7 +67,7 @@ const middlewares = createRoute({
 const versions = createRoute({
   getParentRoute: () => shellRoute,
   path: "/config-versions",
-  component: () => <Placeholder title="Config Versions" />,
+  component: VersionsPage,
 });
 const deployments = createRoute({
   getParentRoute: () => shellRoute,

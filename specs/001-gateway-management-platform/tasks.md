@@ -109,7 +109,7 @@
 
 - [X] T052 [US2] backend/internal/application/pipeline/rollback.go：POST /deployments/rollback——以目标版本快照（不回读当前库）创建 origin=rollback 新版本 + 复用 T038 管线；失败时 verification_result 附 last_known_good_version（FR-031/Edge Case）
 - [X] T053 [US2] backend/internal/api/handlers/versions.go 扩展：GET /versions/{id}/diff?against= 任意两版对比 + 版本历史列表（snapshot/artifact 大字段仅详情返回）（FR-032）
-- [ ] T054 [P] [US2] 前端 Config Versions 页 frontend/src/features/versions/ + frontend/src/routes/config-versions.tsx：历史列表、双版本 diff 视图（资源单位三色）、回滚确认对话框与状态轮询
+- [X] T054 [P] [US2] 前端 Config Versions 页 frontend/src/features/versions/ + frontend/src/routes/config-versions.tsx：历史列表、双版本 diff 视图（资源单位三色）、回滚确认对话框与状态轮询
 - [ ] T055 [P] [US2] 测试：backend/tests/integration/rollback_test.go——回滚生成新版本+部署、DB 业务态清空仍可回滚（快照自包含，宪法 V）；frontend/tests/e2e/rollback.spec.ts（V-2，≤3 分钟）
 
 **Checkpoint**: US1+US2 独立可用；生产变更具备可回滚前提
