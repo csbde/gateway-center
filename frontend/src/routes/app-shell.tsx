@@ -1,6 +1,6 @@
 // T005/T042 · 应用外壳：侧栏导航 + 会话出口（角色隐藏写入口按钮在 US6 T078 前端接线）。
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { tokenStore, logout } from "@/api/session";
+import { can, tokenStore, logout } from "@/api/session";
 
 const NAV = [
   { to: "/", label: "概览" },
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/config-versions", label: "配置版本" },
   { to: "/deployments", label: "发布记录" },
   { to: "/audits", label: "审计日志" },
+  { to: "/users", label: "用户管理", gate: can.manageUsers },
   { to: "/settings", label: "平台设置" },
 ] as const;
 
@@ -24,7 +25,7 @@ export function AppShell() {
       <aside className="w-52 shrink-0 border-r bg-card p-4">
         <div className="text-sm font-semibold">Gateway Center</div>
         <nav className="mt-4 space-y-1">
-          {NAV.map((item) => (
+          {NAV.filter((item) => !("gate" in item) || item.gate(user)).map((item) => (
             <Link
               key={item.to}
               to={item.to}

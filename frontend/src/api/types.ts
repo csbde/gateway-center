@@ -192,6 +192,44 @@ export interface User {
   display_name: string;
   role: string;
   status?: string;
+  last_login_at?: string | null;
+  row_version?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ---- US6：审计检索 / 发布审批 / 用户管理 ----
+
+/** 审计日志（append-only，FR-038；GET /audit-logs 检索 + /audit-logs/{id}）。 */
+export interface AuditLog {
+  id: string;
+  occurred_at: string;
+  actor_id: string;
+  actor_username: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  resource_name: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  ip: string;
+  user_agent?: string;
+  request_id: string;
+}
+
+/** 发布申请（FR-037 生产审批链；status: pending/approved/rejected/cancelled）。 */
+export interface ReleaseRequest {
+  id: string;
+  node_id: string;
+  config_version_id: string;
+  submitted_by: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  comment?: string;
+  row_version: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---- US4：凭据 / 证书观测 / Dashboard 聚合 ----

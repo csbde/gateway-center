@@ -4,8 +4,9 @@ import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { RootRoute } from "./routes/root";
 import { LoginPage } from "./routes/login";
 import { AppShell } from "./routes/app-shell";
-import { Placeholder } from "./routes/placeholder";
 import { DashboardPage } from "./routes/dashboard";
+import { AuditsPage } from "./routes/audits";
+import { UsersPage } from "./routes/users";
 import { NodesPage } from "@/features/nodes";
 import { DomainsPage } from "@/features/domains";
 import { ServicesPage } from "@/features/services";
@@ -79,7 +80,12 @@ const deployments = createRoute({
 const audits = createRoute({
   getParentRoute: () => shellRoute,
   path: "/audits",
-  component: () => <Placeholder title="Audit Logs" />,
+  component: AuditsPage,
+});
+const users = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/users",
+  component: UsersPage,
 });
 const settings = createRoute({
   getParentRoute: () => shellRoute,
@@ -99,6 +105,7 @@ export const routeTree = RootRoute.addChildren([
     versions,
     deployments,
     audits,
+    users,
     settings,
   ]),
 ]);

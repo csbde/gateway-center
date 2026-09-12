@@ -1,6 +1,7 @@
 // T043–T047 · US1 资源端点封装（与 contracts/openapi.yaml 路径一一对应）。
 import { api } from "./client";
 import type {
+  AuditLog,
   CertificateView,
   ConfigVersion,
   CredentialVerifyResult,
@@ -14,11 +15,13 @@ import type {
   Node,
   NodeState,
   PlatformSettings,
+  ReleaseRequest,
   Route,
   RouteView,
   SecretCredential,
   Service,
   Target,
+  User,
   ValidateResult,
 } from "./types";
 
@@ -120,4 +123,31 @@ export const credentialsApi = {
 // ---- dashboard 聚合（US4/T068 + US5/T073）----
 export const dashboardApi = {
   get: () => api.get<DashboardSummary>("/dashboard"),
+};
+
+// ---- audit logs（US6/T079：检索 actor/action/resource_type/from/to + 详情）----
+export const auditApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<AuditLog>>("/audit-logs", q),
+  get: (id: string) => api.get<AuditLog>(`/audit-logs/${id}`),
+};
+
+// ---- users（US6/T080：super_admin CRUD；permission_change 审计 + 禁用吊销会话在服务端）----
+export const usersApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<User>>("/users", q),
+  get: (id: string) => api.get<User>(`/users/${id}`),
+  create: (body: Record<string, unknown>) => api.post<User>("/users", body),
+  update: (id: string, body: Record<string, unknown>) => api.put<User>(`/users/${id}`, body),
+  remove: (id: string) => api.delete<undefined>(`/users/${id}`),
+};
+
+// ---- release requests（US6/T076：生产发布审批；submit/cancel developer+，approve/reject gateway_admin+）----
+export const releaseRequestsApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<ReleaseRequest>>("/release-requests", q),
+  create: (body: { node_id: string; config_version_id: string; comment?: string }) =>
+    api.post<ReleaseRequest>("/release-requests", body),
+  approve: (id: string, comment: string) =>
+    api.post<ReleaseRequest>(`/release-requests/${id}/approve`, { comment }),
+  reject: (id: string, comment: string) =>
+    api.post<ReleaseRequest>(`/release-requests/${id}/reject`, { comment }),
+  cancel: (id: string) => api.post<ReleaseRequest>(`/release-requests/${id}/cancel`),
 };

@@ -1,11 +1,11 @@
 // T047 · 发布向导（US1/AC-007/008/010）：验证报告逐条 → 生成版本 → Diff 预览 → 勾选确认才启用发布 →
 // 轮询部署状态与运行时校验结果。生产类节点未经审批在 API 层 403（此处仅呈现错误引导）。
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { nodesApi, pipelineApi } from "@/api/resources";
-import type { ConfigVersion, Deployment, DiffResult, ValidateResult } from "@/api/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { nodesApi, pipelineApi, releaseRequestsApi } from "@/api/resources";
+import type { ConfigVersion, Deployment, DiffResult, ReleaseRequest, ValidateResult } from "@/api/types";
 import { can, tokenStore } from "@/api/session";
-import { Alert, Badge, Button, Card, DataTable, Modal, Spinner, Td, Tr } from "@/components/ui";
+import { Alert, Badge, Button, Card, DataTable, Input, Modal, Spinner, Td, Tr } from "@/components/ui";
 import { ENV_LABEL, NodeScope, StatusBadge, humanError, useNodes, useNodeScope } from "../common";
 
 const CHANGE_LABEL = { added: "新增", modified: "修改", removed: "移除" } as const;
@@ -290,6 +290,135 @@ export function DeploymentsPage() {
       <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title="发布向导" wide>
         {nodeId && <DeployWizard key={resetKey} nodeId={nodeId} onClose={() => setWizardOpen(false)} />}
       </Modal>
+
+      {/* US6/T081 审批收件箱：gateway_admin+ 审阅 pending 发布申请，Diff + approve/reject 合一。 */}
+      {can.approve(tokenStore.user()) && <ApprovalInbox />}
+    </div>
+  );
+}
+
+// ---- 审批收件箱（US6/T081，FR-037）----
+
+/** 单条发布申请审阅卡：展开看 Diff，approve/reject 合一（comment + 双按钮）。 */
+function ApprovalCard({ rr, nodeNames }: { rr: ReleaseRequest; nodeNames: Map<string, string> }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState("");
+  const [banner, setBanner] = useState("");
+
+  const isSelf = tokenStore.user()?.id === rr.submitted_by;
+
+  const diffQ = useQuery({
+    queryKey: ["version-diff", rr.config_version_id],
+    queryFn: () => pipelineApi.diff(rr.config_version_id),
+    enabled: open,
+  });
+
+  const decide = useMutation({
+    mutationFn: (action: "approve" | "reject") =>
+      action === "approve"
+        ? releaseRequestsApi.approve(rr.id, comment)
+        : releaseRequestsApi.reject(rr.id, comment),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["release-requests", "pending"] });
+    },
+    onError: (e) => setBanner(humanError(e).text),
+  });
+
+  return (
+    <Card className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm">
+          <span className="font-medium">{nodeNames.get(rr.node_id) ?? rr.node_id.slice(0, 8) + "…"}</span>
+          <span className="ml-2 text-muted-foreground">
+            版本 <span className="font-mono">{rr.config_version_id.slice(0, 8)}…</span>
+          </span>
+          <Badge tone="warning" className="ml-2">待审批</Badge>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)}>
+          {open ? "收起变更" : "查看变更"}
+        </Button>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        提交人：<span className="font-mono">{rr.submitted_by.slice(0, 8)}…</span> ·{" "}
+        {new Date(rr.created_at).toLocaleString()}
+        {rr.comment && <> · 备注：{rr.comment}</>}
+      </div>
+
+      {open && (
+        <div className="space-y-2">
+          {diffQ.isPending ? (
+            <Spinner label="加载变更内容…" />
+          ) : diffQ.error ? (
+            <Alert>{humanError(diffQ.error).text}</Alert>
+          ) : diffQ.data ? (
+            <DiffTable diff={diffQ.data} />
+          ) : null}
+        </div>
+      )}
+
+      {isSelf && <Alert>不可审批自己提交的发布申请（FR-037 自批守卫，服务端亦拦截）。</Alert>}
+      {banner && <Alert>{banner}</Alert>}
+      <div className="flex items-center gap-2">
+        <Input
+          className="flex-1"
+          placeholder="审批意见（可选）"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          aria-label="审批意见"
+        />
+        <Button
+          variant="default"
+          loading={decide.isPending && decide.variables === "approve"}
+          disabled={isSelf || (decide.isPending && decide.variables !== "approve")}
+          onClick={() => {
+            setBanner("");
+            decide.mutate("approve");
+          }}
+        >
+          批准
+        </Button>
+        <Button
+          variant="danger"
+          loading={decide.isPending && decide.variables === "reject"}
+          disabled={isSelf || (decide.isPending && decide.variables !== "reject")}
+          onClick={() => {
+            setBanner("");
+            decide.mutate("reject");
+          }}
+        >
+          驳回
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function ApprovalInbox() {
+  const { data: nodesData } = useNodes();
+  const nodeNames = new Map((nodesData?.items ?? []).map((n) => [n.id, n.name]));
+
+  const { data, isPending, error } = useQuery({
+    queryKey: ["release-requests", "pending"],
+    queryFn: () => releaseRequestsApi.list({ status: "pending", page_size: 50 }),
+  });
+  const items = data?.items ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">发布审批</h2>
+        <span className="text-sm text-muted-foreground">{items.length} 条待处理</span>
+      </div>
+      {isPending ? (
+        <Spinner />
+      ) : error ? (
+        <Card className="border-destructive/40">{humanError(error).text}</Card>
+      ) : items.length === 0 ? (
+        <Card className="text-center text-sm text-muted-foreground">暂无待审批的发布申请。</Card>
+      ) : (
+        items.map((rr) => <ApprovalCard key={rr.id} rr={rr} nodeNames={nodeNames} />)
+      )}
     </div>
   );
 }

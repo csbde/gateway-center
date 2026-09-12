@@ -103,8 +103,8 @@ const badgeVariants = cva("inline-flex items-center rounded-full px-2 py-0.5 tex
 
 export type BadgeTone = "neutral" | "success" | "warning" | "danger" | "info";
 
-export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
-  return <span className={cx(badgeVariants({ tone }))}>{children}</span>;
+export function Badge({ tone = "neutral", className, children }: { tone?: BadgeTone; className?: string; children: ReactNode }) {
+  return <span className={cx(badgeVariants({ tone }), className)}>{children}</span>;
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
@@ -194,8 +194,8 @@ export function DataTable({ head, children }: { head: ReactNode[]; children: Rea
   );
 }
 
-export function Tr({ children, className }: { children: ReactNode; className?: string }) {
-  return <tr className={cx("border-b last:border-0", className)}>{children}</tr>;
+export function Tr({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+  return <tr onClick={onClick} className={cx("border-b last:border-0", className)}>{children}</tr>;
 }
 
 export function Td({ children, className, colSpan }: { children: ReactNode; className?: string; colSpan?: number }) {
