@@ -20,9 +20,9 @@ export interface components {
         request_id?: string;
         details?: Array<{
           field?: string;
+          message?: string;
+          id?: string;
           hint?: string;
-          resource?: string;
-          resource_id?: string;
         }>;
       };
     };

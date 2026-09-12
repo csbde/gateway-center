@@ -1101,10 +1101,13 @@ components:
                 type: object
                 properties:
                   field: { type: string }
-                  hint: { type: string }
-                  resource:
+                  message:
+                    type: string
+                    description: "该字段的失败原因（表单错误定位用）"
+                  id:
                     type: string
                     description: "引用方资源标识（依赖检查 409 时构成清单）"
+                  hint: { type: string }
 
     PageMeta:
       type: object

@@ -1,0 +1,160 @@
+// 手写视图类型：与 backend handlers 的 JSON 视图一一对应
+// （generated/schema.d.ts 为 openapi 占位；npm run gen:api 后可替换）。
+export interface Node {
+  id: string;
+  name: string;
+  base_url: string;
+  deploy_root: string;
+  env_type: "development" | "test" | "staging" | "production";
+  remark: string;
+  enabled: boolean;
+  has_api_auth: boolean;
+  row_version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NodeState {
+  node_id: string;
+  status: "unknown" | "online" | "offline" | "degraded";
+  traefik_version: string;
+  consecutive_failures: number;
+  last_online_at: string | null;
+  desired_version: number;
+  actual_version: number;
+  drift: boolean;
+  drift_detail?: unknown[];
+  updated_at: string;
+}
+
+export interface Domain {
+  id: string;
+  node_id: string;
+  name: string;
+  is_wildcard: boolean;
+  https_policy: "off" | "acme_http" | "acme_dns" | "imported";
+  cert_resolver_ref?: string;
+  dns_credential_id?: string | null;
+  imported_cert_id?: string | null;
+  expiry_warn_days: number;
+  enabled: boolean;
+  row_version: number;
+}
+
+export interface Service {
+  id: string;
+  node_id: string;
+  name: string;
+  description?: string;
+  healthcheck_path?: string;
+  interval_sec: number;
+  timeout_sec: number;
+  expected_codes: string;
+  enabled: boolean;
+  row_version: number;
+}
+
+export interface Target {
+  id: string;
+  service_id: string;
+  url: string;
+  weight: number;
+  enabled: boolean;
+  health_status: "up" | "down" | "unknown";
+  row_version: number;
+}
+
+export interface Route {
+  id: string;
+  node_id: string;
+  name: string;
+  mode: "simple" | "advanced";
+  domain_id?: string | null;
+  path?: string;
+  match_type?: string;
+  service_id: string;
+  https: boolean;
+  advanced_rule?: string;
+  priority: number;
+  status: "draft" | "enabled" | "disabled" | "archived";
+  row_version: number;
+  middlewares?: { id: string; name: string; type: string; position: number }[];
+}
+
+export interface RouteView extends Route {
+  generated_rule_preview: string;
+}
+
+export interface ValidationIssue {
+  category: string;
+  blocking: boolean;
+  message: string;
+  hint?: string;
+  resource?: string;
+  resource_id?: string;
+}
+
+export interface ValidateResult {
+  node_id: string;
+  version_id?: string;
+  version?: number;
+  valid: boolean;
+  issues: ValidationIssue[];
+  route_count: number;
+}
+
+export interface ConfigVersion {
+  id: string;
+  node_id: string;
+  version: number;
+  status: "pending" | "validating" | "ready" | "failed";
+  origin: string;
+  changes_summary?: unknown[];
+  created_by?: string | null;
+  created_at: string;
+  row_version: number;
+}
+
+export interface Deployment {
+  deployment_id?: string; // POST 受理响应
+  id?: string; // GET 详情
+  node_id: string;
+  config_version_id: string;
+  trigger: string;
+  status: "pending" | "validating" | "ready" | "deploying" | "success" | "failed";
+  error_code?: string;
+  error_message?: string;
+  verification_result?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DiffResult {
+  from_version: number;
+  to_version: number;
+  summary: Record<string, number>;
+  items: {
+    kind: string;
+    name: string;
+    change: "added" | "modified" | "removed";
+    before?: unknown;
+    after?: unknown;
+  }[];
+}
+
+export interface PlatformSettings {
+  probe_interval_sec: number;
+  offline_threshold: number;
+  expiry_warn_days: number;
+  timezone: string;
+  row_version: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  display_name: string;
+  role: string;
+  status?: string;
+}
+
+export type List<T> = { items: T[]; page: number; page_size: number; total: number };

@@ -83,13 +83,13 @@
 - [X] T039 [US1] backend/internal/api/handlers/pipeline.go：POST /nodes/{id}/validate、POST+GET /nodes/{id}/versions、GET /versions/{id}、GET /versions/{id}/diff、POST+GET /deployments、GET /deployments/{id}（版本/部署记录 DELETE→403，FR-032）
 - [X] T040 [US1] backend/internal/application/probesvc/service.go：节点探测 job（30s；online + Traefik 版本 + 加载集合摘要回写 node_states，FR-002）
 - [X] T041 [US1] backend/internal/application/healthsvc/service.go：Target HTTP 探测 + up/down + Service 聚合 healthy/degraded/down（FR-011/AC-003，R13）
-- [ ] T042 [US1] 前端登录与会话 frontend/src/routes/login.tsx + frontend/src/api/session.ts（access/refresh 拦截、路由守卫）
-- [ ] T043 [P] [US1] 前端 Gateway Nodes 页 frontend/src/features/nodes/：列表/新建/编辑表单、状态徽章、启用禁用
-- [ ] T044 [P] [US1] 前端 Services 页 frontend/src/features/services/：Service+Target 表格（zod 地址/权重校验、错误定位字段）
-- [ ] T045 [P] [US1] 前端 Domains 页 frontend/src/features/domains/：域名 CRUD + HTTPS 策略（imported 证书上传）表单
-- [ ] T046 [P] [US1] 前端 Routes 简单模式向导 frontend/src/features/routes/：节点→域名→路径+匹配→服务→HTTPS，展示自动合成规则预览，全页零 Traefik 术语（FR-042）
-- [ ] T047 [US1] 前端发布向导 frontend/src/features/deployments/：验证报告逐条→生成版本→Diff 预览→勾选确认才启用发布按钮→轮询部署状态与校验结果（AC-007/008/010 的 UI 闭环）
-- [ ] T048 [P] [US1] 前端 Dashboard 占位 frontend/src/routes/dashboard.tsx（资源计数卡片；漂移/预警由 US5 补全）
+- [X] T042 [US1] 前端登录与会话 frontend/src/routes/login.tsx + frontend/src/api/session.ts（access/refresh 拦截、路由守卫）
+- [X] T043 [P] [US1] 前端 Gateway Nodes 页 frontend/src/features/nodes/：列表/新建/编辑表单、状态徽章、启用禁用
+- [X] T044 [P] [US1] 前端 Services 页 frontend/src/features/services/：Service+Target 表格（zod 地址/权重校验、错误定位字段）
+- [X] T045 [P] [US1] 前端 Domains 页 frontend/src/features/domains/：域名 CRUD + HTTPS 策略（imported 证书上传）表单
+- [X] T046 [P] [US1] 前端 Routes 简单模式向导 frontend/src/features/routes/：节点→域名→路径+匹配→服务→HTTPS，展示自动合成规则预览，全页零 Traefik 术语（FR-042）
+- [X] T047 [US1] 前端发布向导 frontend/src/features/deployments/：验证报告逐条→生成版本→Diff 预览→勾选确认才启用发布按钮→轮询部署状态与校验结果（AC-007/008/010 的 UI 闭环）
+- [X] T048 [P] [US1] 前端 Dashboard 占位 frontend/src/routes/dashboard.tsx（资源计数卡片；漂移/预警由 US5 补全）
 
 ### Tests for User Story 1 ⚠️（T049–T051 应先于对应实现编写并失败；编号按文件分组保持连续）
 

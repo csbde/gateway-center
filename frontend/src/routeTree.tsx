@@ -5,6 +5,12 @@ import { RootRoute } from "./routes/root";
 import { LoginPage } from "./routes/login";
 import { AppShell } from "./routes/app-shell";
 import { Placeholder } from "./routes/placeholder";
+import { DashboardPage } from "./routes/dashboard";
+import { NodesPage } from "@/features/nodes";
+import { DomainsPage } from "@/features/domains";
+import { ServicesPage } from "@/features/services";
+import { RoutesPage } from "@/features/routes";
+import { DeploymentsPage } from "@/features/deployments";
 import { tokenStore } from "./api/session";
 
 function requireAuth() {
@@ -29,27 +35,27 @@ const shellRoute = createRoute({
 const dash = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
-  component: () => <Placeholder title="Dashboard" />,
+  component: DashboardPage,
 });
 const nodes = createRoute({
   getParentRoute: () => shellRoute,
   path: "/nodes",
-  component: () => <Placeholder title="Gateway Nodes" />,
+  component: NodesPage,
 });
 const domains = createRoute({
   getParentRoute: () => shellRoute,
   path: "/domains",
-  component: () => <Placeholder title="Domains" />,
+  component: DomainsPage,
 });
 const services = createRoute({
   getParentRoute: () => shellRoute,
   path: "/services",
-  component: () => <Placeholder title="Services" />,
+  component: ServicesPage,
 });
 const routes = createRoute({
   getParentRoute: () => shellRoute,
   path: "/routes",
-  component: () => <Placeholder title="Routing Rules" />,
+  component: RoutesPage,
 });
 const middlewares = createRoute({
   getParentRoute: () => shellRoute,
@@ -64,7 +70,7 @@ const versions = createRoute({
 const deployments = createRoute({
   getParentRoute: () => shellRoute,
   path: "/deployments",
-  component: () => <Placeholder title="Deployments & Approvals" />,
+  component: DeploymentsPage,
 });
 const audits = createRoute({
   getParentRoute: () => shellRoute,
