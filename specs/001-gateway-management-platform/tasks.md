@@ -176,7 +176,7 @@
 **Independent Test**: quickstart.md V-6——四角色同操作矩阵、审计还原完整链条、UPDATE audit 被拒
 
 - [X] T076 [US6] backend/internal/application/approvalsvc/ + handlers/release_requests.go：submit（版本须 ready）、cancel、approve/reject 422 自批守卫（FR-037）
-- [ ] T077 [US6] 管线接线：backend/internal/application/pipeline/deploy.go Gate——production 节点必须携带已批准 approval_id，Developer 对 production 直发→403、test 类节点可直发但验证不可跳（RBAC 复核）
+- [X] T077 [US6] 管线接线：backend/internal/application/pipeline/deploy.go Gate——production 节点必须携带已批准 approval_id，Developer 对 production 直发→403、test 类节点可直发但验证不可跳（RBAC 复核）
 - [ ] T078 [US6] RBAC 矩阵化：backend/internal/api/router.go 全端点 RequireRoles 与 openapi x-rbac 逐项对齐，Viewer 一切写入口 403（前端按钮态同步）
 - [ ] T079 [US6] 审计：backend/internal/api/handlers/audits.go——GET /audit-logs 检索（actor/action/resource_type/from/to 分页）+ /audit-logs/{id}；backend/migrations/0002_audit_partitions.sql——按月 RANGE 分区、UPDATE/DELETE revoke（FR-038/NFR-AUD-01/宪法 X）
 - [ ] T080 [US6] 用户管理：backend/internal/api/handlers/users.go（仅 super_admin）、permission_change 审计、禁用即时吊销会话（FR-036）

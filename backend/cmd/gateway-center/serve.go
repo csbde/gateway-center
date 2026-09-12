@@ -122,9 +122,9 @@ func runServe(args []string) error {
 	versionSvc := pipeline.NewVersionService(
 		pipeline.NewGraphLoader(nodes, doms, svcs, targets, routes, mws),
 		vers, deploys, certs, cipher, rec)
-	// gate=nil：非 production 放行；production 直发在 Deploy 内 403（US6 T077 接入审批 Gate）。
+	// production 审批 Gate（US6 T077）：production 节点须携带已批准 approval_id，否则 403。
 	deploySvc := pipeline.NewDeployService(vers, deploys, nodes, certs, cipher,
-		deployer.NewFileDeployer(), traefikFactory, rec, nil)
+		deployer.NewFileDeployer(), traefikFactory, rec, approvalsvc.NewProductionGate(approvals))
 
 	h := &handlers.Handler{
 		Auth:        authSvc,

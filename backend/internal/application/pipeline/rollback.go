@@ -14,7 +14,9 @@ import (
 	"gateway-center/backend/internal/generate"
 )
 
-// Rollback 门禁语义与 Deploy 相同（confirmed 必填、离线阻断、并发闸、生产 Gate）。
+// Rollback 门禁：confirmed 必填、离线阻断、并发闸（与 Deploy 一致）；不经生产审批 Gate——
+// 回滚目标是曾成功部署的已知良好版本（wasSuccessful 守卫），权限限 gateway_admin+，
+// 紧急恢复不应被审批链阻塞（FR-031 一键回滚 vs FR-037 production 审批，语义不同）。
 // 新版本内容 = 目标版本快照逐字节复用（产物重生成保证确定性），source_version_id 指回目标。
 func (s *DeployService) Rollback(ctx context.Context, nodeID, targetVersionID string, confirmed bool, actorID string, async AsyncRunner) (*DeployResult, *httperr.APIError) {
 	node, err := s.nodes.Get(ctx, nodeID)

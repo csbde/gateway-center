@@ -102,7 +102,8 @@ func (s *DeployService) Deploy(ctx context.Context, in DeployInput, actorID stri
 	if active != nil {
 		return nil, httperr.DeployInProgress(node.Name)
 	}
-	// —— 生产审批 Gate（US6 T077；当前 gate==nil 时 production 也仅记审计）——
+	// —— 生产审批 Gate（US6 T077）：gate 校验 production 节点须携带已批准 approval_id。
+	// gate==nil 为防御性兜底（不应发生）：production 直发即 403，绝不放行。
 	if s.gate != nil {
 		if apiErr := s.gate.Check(ctx, node, v.ID, in.ApprovalID, actorID); apiErr != nil {
 			return nil, apiErr
