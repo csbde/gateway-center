@@ -12,9 +12,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // 开发期同源免 CORS：/api → 后端 8080
-      "/api": { target: "http://localhost:8080", changeOrigin: true },
-      "/healthz": { target: "http://localhost:8080", changeOrigin: true },
+      // 开发期同源免 CORS：/api → 后端（默认 :8080；本机端口被占时用 VITE_API_PROXY 覆盖，e2e 亦依赖此变量）
+      "/api": { target: process.env.VITE_API_PROXY ?? "http://localhost:8080", changeOrigin: true },
+      "/healthz": { target: process.env.VITE_API_PROXY ?? "http://localhost:8080", changeOrigin: true },
     },
   },
   test: {

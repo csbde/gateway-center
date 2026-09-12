@@ -1,0 +1,14 @@
+# T051 · 仅本机 e2e 用端口覆盖：宿主 5432/8081 常被其它项目占用时，改映射到 5433/8091。
+# ports 列表跨文件默认“追加合并”，用 !override 整体替换（compose v2.24+）。
+# 用法：docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
+# 配套：后端 GC_DATABASE_URL 指 5433、节点 base_url 指 http://localhost:8091（E2E_TRAEFIK_API）。
+name: gateway-center
+services:
+  postgres:
+    ports: !override
+      - "5433:5432"
+  traefik:
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "8091:8080"

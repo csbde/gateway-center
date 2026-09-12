@@ -11,7 +11,7 @@ import { NodeScope, StatusBadge, humanError, useNodes, useNodeScope } from "../c
 const CHANGE_LABEL = { added: "新增", modified: "修改", removed: "移除" } as const;
 const CHANGE_TONE = { added: "success", modified: "info", removed: "danger" } as const;
 
-const ORIGIN_LABEL: Record<string, string> = { manual: "手动发布", rollback: "回滚", system: "系统" };
+const ORIGIN_LABEL: Record<string, string> = { forward: "业务发布", rollback: "回滚" };
 
 function DiffView({ diff }: { diff: DiffResult }) {
   return (

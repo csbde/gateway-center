@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -90,12 +91,25 @@ func (c *Client) HTTPRouters(ctx context.Context) (map[string]map[string]any, er
 	m := map[string]map[string]any{}
 	for _, it := range raw.Items {
 		name, _ := it["name"].(string)
-		if name == "" {
-			continue
+		if base, ok := platformName(name); ok {
+			m[base] = it
 		}
-		m[name] = it
 	}
 	return m, nil
+}
+
+// platformName 归一化实际态资源名并过滤平台治理域之外的资源：
+// file provider 将路由器以 "名称@file" 上报（快照按裸名期望，须剥后缀比对）；
+// "@internal"（api/dashboard 等 Traefik 内建路由）不属于平台产物，直接剔除（宪章 XI 分域）。
+func platformName(name string) (string, bool) {
+	base, _, has := strings.Cut(name, "@")
+	if base == "" {
+		return "", false
+	}
+	if has && strings.EqualFold(name[len(base)+1:], "internal") {
+		return "", false
+	}
+	return base, true
 }
 
 // HTTPServices / HTTPMiddlewares 实际加载集合。

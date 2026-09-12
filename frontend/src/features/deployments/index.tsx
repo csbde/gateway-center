@@ -100,7 +100,7 @@ function DeployWizard({ nodeId, onClose }: { nodeId: string; onClose: () => void
   const warnings = (report?.issues ?? []).filter((i) => !i.blocking);
 
   return (
-    <div className="space-y-4" aria-label="发布向导">
+    <div role="group" aria-label="发布向导" className="space-y-4">
       {banner && <Alert>{banner}</Alert>}
 
       {/* ① 验证 */}
