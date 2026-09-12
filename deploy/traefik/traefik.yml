@@ -1,0 +1,32 @@
+# T006 · Traefik Static 预配样本（宪章 III：平台对其只读，永不写回）
+# 平台产物仅写入 dynamic/ 子树；此处声明 entrypoints / file provider / API / ACME resolver。
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+api:
+  dashboard: true
+  # 参考拓扑走 :8080 内部端口的只读 API（compose 映射 8081→8080，即节点 base_url）。
+  # 生产应由运维改为经 entrypoint 路由 + BasicAuth（平台节点凭证即该凭据）。
+  insecure: true
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# DNS Challenge resolver（宪章 VII：泛域名必须走 DNS Challenge，引用 secret_credentials）
+certificatesResolvers:
+  le:
+    acme:
+      email: ops@example.com
+      storage: /etc/traefik/acme/acme.json
+      dnsChallenge:
+        provider: route53
+
+log:
+  level: INFO
+
+accessLog: {}

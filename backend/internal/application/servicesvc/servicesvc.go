@@ -98,7 +98,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*domain
 		IntervalSec:     orDefault(in.IntervalSec, 30), TimeoutSec: orDefault(in.TimeoutSec, 2),
 		ExpectedCodes: orDefaultStr(in.ExpectedCodes, "2xx-3xx"), Enabled: true,
 	}
-	sv.CreatedBy, sv.UpdatedBy = actorID, actorID
+	sv.SetActor(actorID)
 	if err := s.svcs.Create(ctx, sv); err != nil {
 		if isUnique(err) {
 			return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name"})
@@ -234,7 +234,7 @@ func (s *Service) AddTarget(ctx context.Context, serviceID string, in TargetInpu
 		w = 1
 	}
 	t := &domain.Target{ServiceID: sv.ID, URL: norm, Weight: w, Enabled: in.Enabled == nil || *in.Enabled}
-	t.CreatedBy, t.UpdatedBy = actorID, actorID
+	t.SetActor(actorID)
 	if err := s.targets.Create(ctx, t); err != nil {
 		return nil, httperr.Internal(err)
 	}

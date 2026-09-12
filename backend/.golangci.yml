@@ -1,0 +1,29 @@
+# T007 · golangci-lint 配置（保守集：正确性优先，避免风格噪音）
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # 忽略错误返回即缺陷（管线原子性依赖错误处理）
+    - govet
+    - staticcheck   # SA 系列含 nil 解引用/上下文误用
+    - unused
+    - gosimple
+    - ineffassign
+    - misspell
+    - nilerr
+    - copyloopvar
+    - errorlint     # %w 与 errors.Is/As 一致性
+
+linters-settings:
+  errcheck:
+    check-blank: false
+  staticcheck:
+    checks: ["all"]
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [errcheck]

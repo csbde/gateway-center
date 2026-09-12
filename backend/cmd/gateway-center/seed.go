@@ -157,7 +157,7 @@ func seedAdmin(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 	}
 	nu := &domain.User{Username: cfg.InitialAdminUser, DisplayName: "Platform Admin",
 		PasswordHash: hash, Role: domain.RoleSuperAdmin, Status: "active"}
-	nu.CreatedBy, nu.UpdatedBy = nu.ID, nu.ID
+	// Create 前 ID 尚空（DB 默认生成）→ 首账号 created_by 留空，属系统级创建
 	if err := repo.Create(ctx, nu); err != nil {
 		return fmt.Errorf("创建初始管理员: %w", err)
 	}

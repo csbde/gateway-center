@@ -119,7 +119,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*domain
 		ExpiryWarnDays:  warn, Enabled: true,
 	}
 	d.DNSSCredentialID = nilIfEmpty(in.DNSSCredentialID)
-	d.CreatedBy, d.UpdatedBy = actorID, actorID
+	d.SetActor(actorID)
 	if err := s.domains.Create(ctx, d); err != nil {
 		if isUnique(err) {
 			return nil, policyErr("该节点下域名已存在", "name", "同一节点内域名唯一")

@@ -121,7 +121,7 @@ func (s *DeployService) Deploy(ctx context.Context, in DeployInput, actorID stri
 		NodeID: node.ID, ConfigVersionID: v.ID, Trigger: "deploy",
 		Status: "pending", ConfirmedAt: &now, ConfirmedBy: &actorID, ApprovalID: in.ApprovalID,
 	}
-	d.CreatedBy, d.UpdatedBy = actorID, actorID
+	d.SetActor(actorID)
 	if err := s.deploys.Create(ctx, d); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
 			return nil, httperr.DeployInProgress(node.Name)

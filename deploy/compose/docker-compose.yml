@@ -1,0 +1,46 @@
+# T006 · 参考部署拓扑（验证/开发用，非生产）
+# 前置（宪法 III / POSIX rename）：./dynamic 必须与 Traefik 容器同主机 bind mount——
+# 原子 rename 仅在 POSIX 同文件系统内成立，跨主机 NFS/virtiofs 不保证。
+name: gateway-center
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gc
+      POSTGRES_PASSWORD: gc
+      POSTGRES_DB: gc
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gc -d gc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # 数据面：运维预配样本。平台只读其 API，且只写 /etc/traefik/dynamic/ 子树（宪章 III）。
+  traefik:
+    image: traefik:v3.3
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"        # entrypoint web
+      - "443:443"      # entrypoint websecure
+      - "8081:8080"    # Traefik API/dashboard（平台只读探测目标）
+    volumes:
+      - ../traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic:/etc/traefik/dynamic        # 平台写入 ⇄ Traefik 读取（共享卷）
+      - acme:/etc/traefik/acme
+    depends_on:
+      - sample-crm
+
+  # 示例上游：验证 Target 健康检查与路由转发（V-1）
+  sample-crm:
+    image: containous/whoami
+    labels: {}
+
+volumes:
+  pgdata:
+  acme:

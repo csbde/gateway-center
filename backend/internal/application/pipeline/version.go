@@ -196,7 +196,7 @@ func (s *VersionService) CreateVersion(ctx context.Context, nodeID, actorID stri
 		Snapshot: snapMap, ArtifactFiles: generate.ArtifactToFiles(arts),
 		ChangesSummary: changes, ParentVersionID: parent, Origin: "forward",
 	}
-	v.CreatedBy, v.UpdatedBy = actorID, actorID
+	v.SetActor(actorID)
 	if err := s.vers.Create(ctx, v); err != nil {
 		return nil, vres, httperr.Internal(err)
 	}

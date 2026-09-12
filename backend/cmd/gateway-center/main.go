@@ -20,7 +20,7 @@ func run(args []string) error {
 	}
 	switch args[0] {
 	case "serve":
-		return runServe()
+		return runServe(args[1:])
 	case "migrate-seed":
 		return runMigrateSeed()
 	case "-h", "--help", "help":

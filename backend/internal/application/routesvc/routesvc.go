@@ -109,7 +109,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*View, 
 		AdvancedRule: strings.TrimSpace(in.AdvancedRule),
 		Status:       "draft", // 新建即草稿，发布链负责 enabled
 	}
-	rt.CreatedBy, rt.UpdatedBy = actorID, actorID
+	rt.SetActor(actorID)
 	if err := s.routes.Create(ctx, rt); err != nil {
 		if isUnique(err) {
 			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name"})

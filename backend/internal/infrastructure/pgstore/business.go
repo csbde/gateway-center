@@ -237,15 +237,13 @@ func (r *RouteRepo) ListByNode(ctx context.Context, nodeID string) ([]domain.Rou
 }
 
 // MaxPriority 自动分配优先级（data-model §6）。
+// 聚合单行：Pluck 到 *int 空表时触发 "Scan without Next"，改 Raw+COALESCE。
 func (r *RouteRepo) MaxPriority(ctx context.Context, nodeID string) (int, error) {
-	var maxp *int
-	err := r.db.WithContext(ctx).Model(&domain.Route{}).
-		Where("node_id = ? AND deleted_at IS NULL", nodeID).
-		Pluck("MAX(priority)", &maxp).Error
-	if err != nil || maxp == nil {
-		return 0, err
-	}
-	return *maxp, nil
+	var maxp int
+	err := r.db.WithContext(ctx).Raw(
+		"SELECT COALESCE(MAX(priority), 0) FROM routes WHERE node_id = ? AND deleted_at IS NULL",
+		nodeID).Scan(&maxp).Error
+	return maxp, err
 }
 
 // ReplaceMiddlewares 有序绑定整组替换（FR-018）。

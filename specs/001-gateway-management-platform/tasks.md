@@ -93,8 +93,8 @@
 
 ### Tests for User Story 1 ⚠️（T049–T051 应先于对应实现编写并失败；编号按文件分组保持连续）
 
-- [ ] T049 [P] [US1] 契约测试 backend/tests/contract/us1_crud_test.go：/nodes /domains /services /routes /versions /deployments 状态码、错误体、409 乐观锁、私钥与 api_auth 脱敏断言
-- [ ] T050 [US1] 集成测试 backend/tests/integration/pipeline_e2e_test.go：空平台到 success 全链 + 无旁路（未 validate/未确认/离线三种 422）+ 原子性采样（make test-pipeline）
+- [X] T049 [P] [US1] 契约测试 backend/tests/contract/us1_crud_test.go：/nodes /domains /services /routes /versions /deployments 状态码、错误体、409 乐观锁、私钥与 api_auth 脱敏断言
+- [X] T050 [US1] 集成测试 backend/tests/integration/pipeline_e2e_test.go：空平台到 success 全链 + 无旁路（未 validate/未确认/离线三种 422）+ 原子性采样（make test-pipeline）
 - [ ] T051 [US1] E2E frontend/tests/e2e/uf1-publish.spec.ts：quickstart V-1 步骤 1–9，含 15 分钟计时断言（SC-001）
 
 **Checkpoint**: MVP 可独立交付——HTTP/自有证书 + 纯转发路由端到端发布生效并验证
@@ -107,8 +107,8 @@
 
 **Independent Test**: quickstart.md V-2——两次发布后回滚，网关恢复 v1 行为
 
-- [ ] T052 [US2] backend/internal/application/pipeline/rollback.go：POST /deployments/rollback——以目标版本快照（不回读当前库）创建 origin=rollback 新版本 + 复用 T038 管线；失败时 verification_result 附 last_known_good_version（FR-031/Edge Case）
-- [ ] T053 [US2] backend/internal/api/handlers/versions.go 扩展：GET /versions/{id}/diff?against= 任意两版对比 + 版本历史列表（snapshot/artifact 大字段仅详情返回）（FR-032）
+- [X] T052 [US2] backend/internal/application/pipeline/rollback.go：POST /deployments/rollback——以目标版本快照（不回读当前库）创建 origin=rollback 新版本 + 复用 T038 管线；失败时 verification_result 附 last_known_good_version（FR-031/Edge Case）
+- [X] T053 [US2] backend/internal/api/handlers/versions.go 扩展：GET /versions/{id}/diff?against= 任意两版对比 + 版本历史列表（snapshot/artifact 大字段仅详情返回）（FR-032）
 - [ ] T054 [P] [US2] 前端 Config Versions 页 frontend/src/features/versions/ + frontend/src/routes/config-versions.tsx：历史列表、双版本 diff 视图（资源单位三色）、回滚确认对话框与状态轮询
 - [ ] T055 [P] [US2] 测试：backend/tests/integration/rollback_test.go——回滚生成新版本+部署、DB 业务态清空仍可回滚（快照自包含，宪法 V）；frontend/tests/e2e/rollback.spec.ts（V-2，≤3 分钟）
 
@@ -122,10 +122,10 @@
 
 **Independent Test**: quickstart.md V-3——白名单拦放置、绑定顺序保序、被引用删除阻止
 
-- [ ] T056 [P] [US3] backend/internal/domain/mwreg/：类型注册表 Registry[type]{Validate→FieldError[], ToTraefik→map}，五类参数结构（data-model.md §7：CIDR 合法性、average≥1、frame_options 枚举等字段级校验）（FR-021，NFR-MNT-01 扩展点）
+- [X] T056 [P] [US3] backend/internal/domain/mwreg/：类型注册表 Registry[type]{Validate→FieldError[], ToTraefik→map}，五类参数结构（data-model.md §7：CIDR 合法性、average≥1、frame_options 枚举等字段级校验）（FR-021，NFR-MNT-01 扩展点）
 - [ ] T057 [US3] backend/internal/application/mwsvc/ + handlers/middlewares.go：中间件 CRUD/启停、referenced_by 回显
 - [ ] T058 [US3] 生成链：backend/internal/generate/ Snapshot 增 middleware 段；routers/*.yml middlewares 数组顺序 == route_middlewares.position（FR-018/AC-005）；backend/internal/domain/validate 接入「被引用中间件 disabled→blocker」
-- [ ] T059 [US3] backend/internal/domain/advrule/：高级模式表达式解析器+白名单验证（Host/HostRegexp/Path/PathPrefix/Headers/HeadersRegexp/Method + &&/||/括号）+ 归一化预览（FR-015）
+- [X] T059 [US3] backend/internal/domain/advrule/：高级模式表达式解析器+白名单验证（Host/HostRegexp/Path/PathPrefix/Headers/HeadersRegexp/Method + &&/||/括号）+ 归一化预览（FR-015）
 - [ ] T060 [US3] POST /routes/validate-advanced + backend/internal/application/routesvc advanced 写路径：仅 gateway_admin+（403 守卫）、risk_notice 固定文案、每次使用写 advanced_edit 审计关联 route_id（FR-016/宪法 II/X）
 - [ ] T061 [P] [US3] 前端 Middlewares 页 frontend/src/features/middlewares/：五类类型化表单（zod per-type，错误定位字段）；frontend/src/features/routes/ 扩展：middleware 多选拖拽排序 + 高级模式编辑器（风险提示横幅 + 实时语法验证 + 预览）
 - [ ] T062 [P] [US3] 单元测试：backend/internal/domain/mwreg/*_test.go（五类参数边界）、backend/internal/domain/advrule/*_test.go（文法边界）、backend/internal/generate/order_test.go（保序）

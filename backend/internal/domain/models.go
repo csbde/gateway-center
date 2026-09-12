@@ -14,14 +14,23 @@ type Base struct {
 	ID         string         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
-	CreatedBy  string         `gorm:"type:uuid" json:"created_by"`
-	UpdatedBy  string         `gorm:"type:uuid" json:"updated_by"`
+	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`
+	UpdatedBy  *string        `gorm:"type:uuid" json:"updated_by"`
 	RowVersion int64          `gorm:"not null;default:1" json:"row_version"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (b *Base) UID() string    { return b.ID }
 func (b *Base) RowRef() *int64 { return &b.RowVersion }
+
+// SetActor 写入创建/变更者（uuid；审计列可空，故用指针）。
+func (b *Base) SetActor(actorID string) {
+	if actorID == "" {
+		return
+	}
+	b.CreatedBy = &actorID
+	b.UpdatedBy = &actorID
+}
 
 // ---- 1. User / Role（FR-036）----
 
@@ -156,9 +165,9 @@ type Domain struct {
 	NodeID           string      `gorm:"type:uuid;not null" json:"node_id"`
 	Name             string      `gorm:"type:citext;not null" json:"name"`
 	IsWildcard       bool        `gorm:"->;column:is_wildcard" json:"is_wildcard"` // 生成列（迁移中 STORED）
-	HTTPSPolicy      HTTPSPolicy `gorm:"not null;default:off" json:"https_policy"`
+	HTTPSPolicy      HTTPSPolicy `gorm:"column:https_policy;not null;default:off" json:"https_policy"`
 	CertResolverRef  string      `json:"cert_resolver_ref,omitempty"`
-	DNSSCredentialID *string     `gorm:"type:uuid" json:"dns_credential_id,omitempty"`
+	DNSSCredentialID *string     `gorm:"column:dns_credential_id;type:uuid" json:"dns_credential_id,omitempty"`
 	ImportedCertID   *string     `gorm:"type:uuid" json:"imported_cert_id,omitempty"`
 	ExpiryWarnDays   int         `gorm:"not null;default:30" json:"expiry_warn_days"`
 	Enabled          bool        `gorm:"not null;default:true" json:"enabled"`
@@ -234,7 +243,7 @@ type Route struct {
 	Path         string            `json:"path,omitempty"`
 	MatchType    string            `gorm:"not null;default:prefix" json:"match_type"` // exact/prefix
 	ServiceID    string            `gorm:"type:uuid;not null" json:"service_id"`
-	HTTPS        bool              `gorm:"not null;default:false" json:"https"`
+	HTTPS        bool              `gorm:"column:https;not null;default:false" json:"https"`
 	Priority     int               `gorm:"not null;default:0" json:"priority"`
 	AdvancedRule string            `json:"advanced_rule,omitempty"`
 	Status       string            `gorm:"not null;default:draft" json:"status"` // draft/enabled/disabled/archived

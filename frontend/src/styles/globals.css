@@ -1,0 +1,67 @@
+/* T004 · Tailwind 4：CSS-first 主题令牌（浅/深色经 oklch 变量，shadcn 风格命名） */
+@import "tailwindcss";
+
+@theme {
+  --color-background: oklch(0.995 0.002 250);
+  --color-foreground: oklch(0.2 0.02 250);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.2 0.02 250);
+  --color-primary: oklch(0.55 0.18 262);
+  --color-primary-foreground: oklch(0.99 0.005 250);
+  --color-secondary: oklch(0.96 0.01 250);
+  --color-secondary-foreground: oklch(0.25 0.02 250);
+  --color-muted: oklch(0.96 0.008 250);
+  --color-muted-foreground: oklch(0.5 0.02 250);
+  --color-destructive: oklch(0.58 0.22 25);
+  --color-destructive-foreground: oklch(0.99 0.005 250);
+  --color-success: oklch(0.62 0.17 150);
+  --color-warning: oklch(0.75 0.16 85);
+  --color-border: oklch(0.92 0.008 250);
+  --color-input: oklch(0.92 0.008 250);
+  --color-ring: oklch(0.55 0.18 262);
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-background: oklch(0.17 0.015 260);
+    --color-foreground: oklch(0.96 0.005 250);
+    --color-card: oklch(0.21 0.015 260);
+    --color-card-foreground: oklch(0.96 0.005 250);
+    --color-secondary: oklch(0.28 0.015 260);
+    --color-secondary-foreground: oklch(0.96 0.005 250);
+    --color-muted: oklch(0.26 0.015 260);
+    --color-muted-foreground: oklch(0.7 0.015 250);
+    --color-border: oklch(0.32 0.015 260);
+    --color-input: oklch(0.32 0.015 260);
+  }
+}
+:root[data-theme="dark"] {
+  --color-background: oklch(0.17 0.015 260);
+  --color-foreground: oklch(0.96 0.005 250);
+  --color-card: oklch(0.21 0.015 260);
+  --color-card-foreground: oklch(0.96 0.005 250);
+  --color-secondary: oklch(0.28 0.015 260);
+  --color-secondary-foreground: oklch(0.96 0.005 250);
+  --color-muted: oklch(0.26 0.015 260);
+  --color-muted-foreground: oklch(0.7 0.015 250);
+  --color-border: oklch(0.32 0.015 260);
+  --color-input: oklch(0.32 0.015 260);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family:
+      system-ui,
+      -apple-system,
+      "PingFang SC",
+      "Microsoft YaHei",
+      sans-serif;
+    font-size: 14px;
+  }
+}

@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -39,10 +40,16 @@ import (
 	"gateway-center/backend/internal/infrastructure/traefikapi"
 )
 
-func runServe() error {
+func runServe(args []string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	addr := fs.String("addr", "", "监听地址（覆盖 GC_ADDR）")
+	_ = fs.Parse(args)
+	if *addr != "" {
+		cfg.Addr = *addr
 	}
 	logger := logging.New(slog.LevelInfo)
 	slog.SetDefault(logger)

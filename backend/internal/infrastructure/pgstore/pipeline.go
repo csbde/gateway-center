@@ -3,6 +3,7 @@ package pgstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -21,15 +22,13 @@ func (r *VersionRepo) NextVersion(ctx context.Context, nodeID string) (int64, er
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", nodeID).Error; err != nil {
 			return err
 		}
-		var maxv *int64
-		if err := tx.Model(&domain.ConfigVersion{}).Where("node_id = ?", nodeID).
-			Pluck("MAX(version)", &maxv).Error; err != nil {
+		var maxv int64
+		// 聚合单行：Pluck 到 *int64 在空表时触发 "Scan without Next"，改 Raw+COALESCE
+		if err := tx.Raw("SELECT COALESCE(MAX(version), 0) FROM config_versions WHERE node_id = ? AND deleted_at IS NULL",
+			nodeID).Scan(&maxv).Error; err != nil {
 			return err
 		}
-		v = 1
-		if maxv != nil {
-			v = *maxv + 1
-		}
+		v = maxv + 1
 		return nil
 	})
 	return v, err
@@ -123,6 +122,9 @@ func NewDeploymentRepo(db *gorm.DB) *DeploymentRepo { return &DeploymentRepo{db:
 
 func (r *DeploymentRepo) Create(ctx context.Context, d *domain.Deployment) error {
 	d.RowVersion = 1
+	if d.Logs == nil {
+		d.Logs = []map[string]any{} // 列 NOT NULL DEFAULT '[]'，避免 serializer 写显式 NULL
+	}
 	return r.db.WithContext(ctx).Create(d).Error
 }
 
@@ -153,7 +155,11 @@ func (r *DeploymentRepo) SetStatus(ctx context.Context, id, from, to, stage stri
 		fields := map[string]any{"status": to, "row_version": gorm.Expr("row_version + 1")}
 		if extra != nil {
 			if v, ok := extra["verification_result"]; ok {
-				fields["verification_result"] = v
+				vb, err := json.Marshal(v)
+				if err != nil {
+					return err
+				}
+				fields["verification_result"] = string(vb) // 同 logs：map 更新绕过字段 serializer
 			}
 			if v, ok := extra["error_message"]; ok {
 				fields["error_message"] = v
@@ -170,7 +176,12 @@ func (r *DeploymentRepo) SetStatus(ctx context.Context, id, from, to, stage stri
 			return errors.New("部署状态迁移非法: " + from + "→" + to)
 		}
 		logs := append(d.Logs, ev)
-		return tx.Model(&domain.Deployment{}).Where("id = ?", id).Update("logs", logs).Error
+		// 显式 JSON 编码：Update(列, 切片值) 不触发字段 serializer:json，会把数组写成对象
+		lb, err := json.Marshal(logs)
+		if err != nil {
+			return err
+		}
+		return tx.Model(&domain.Deployment{}).Where("id = ?", id).Update("logs", string(lb)).Error
 	})
 }
 

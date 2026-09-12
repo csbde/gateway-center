@@ -70,7 +70,7 @@ func (s *Service) Create(ctx context.Context, in Input, actor Actor) (*domain.Ga
 		DeployRoot: in.DeployRoot, EnvType: domain.EnvType(in.EnvType),
 		Remark: in.Remark, Enabled: true,
 	}
-	n.CreatedBy, n.UpdatedBy = actor.ID, actor.ID
+	n.SetActor(actor.ID)
 	if in.APIAuth != "" {
 		enc, err := s.cipher.Encrypt([]byte(in.APIAuth))
 		if err != nil {

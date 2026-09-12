@@ -78,7 +78,7 @@ func (s *DeployService) Rollback(ctx context.Context, nodeID, targetVersionID st
 		ChangesSummary:  changes,
 		ParentVersionID: &pid, Origin: "rollback", SourceVersionID: &pid,
 	}
-	v.CreatedBy, v.UpdatedBy = actorID, actorID
+	v.SetActor(actorID)
 	if err := s.vers.Create(ctx, v); err != nil {
 		return nil, httperr.Internal(err)
 	}
@@ -94,7 +94,7 @@ func (s *DeployService) Rollback(ctx context.Context, nodeID, targetVersionID st
 		NodeID: node.ID, ConfigVersionID: v.ID, Trigger: "rollback",
 		Status: "pending", ConfirmedAt: &now, ConfirmedBy: &actorID,
 	}
-	d.CreatedBy, d.UpdatedBy = actorID, actorID
+	d.SetActor(actorID)
 	if err := s.deploys.Create(ctx, d); err != nil {
 		return nil, httperr.DeployInProgress(node.Name)
 	}
