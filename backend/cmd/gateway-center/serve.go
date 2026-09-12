@@ -34,6 +34,7 @@ import (
 	"gateway-center/backend/internal/application/servicesvc"
 	"gateway-center/backend/internal/application/settingsvc"
 	"gateway-center/backend/internal/domain"
+	"gateway-center/backend/internal/infrastructure/certwatch"
 	"gateway-center/backend/internal/infrastructure/config"
 	"gateway-center/backend/internal/infrastructure/cryptox"
 	"gateway-center/backend/internal/infrastructure/deployer"
@@ -139,11 +140,14 @@ func runServe(args []string) error {
 		Deps:        deploys,
 	}
 
-	// ---- scheduler：节点探测 + Target 健康 ----
+	// ---- scheduler：节点探测 + Target 健康 + 证书到期观测 ----
 	probe := probesvc.New(nodes, probesvc.SettingsAdapter{
 		Snap: func() *domain.PlatformSettings { return settingsSvc.Current(context.Background()) },
 	}, probesvc.ClientFactory(traefikFactory))
 	health := healthsvc.New(targets, svcs)
+	certWatch := certwatch.New(certs, doms, certwatch.SettingsAdapter{
+		Snap: func() *domain.PlatformSettings { return settingsSvc.Current(context.Background()) },
+	}, nil)
 
 	sched := scheduler.New(32)
 	probeInterval := time.Duration(settingsSvc.Current(context.Background()).ProbeIntervalSec) * time.Second
@@ -152,6 +156,7 @@ func runServe(args []string) error {
 	}
 	sched.Every("node-probe", probeInterval, probe.RunOnce)
 	sched.Every("target-health", 15*time.Second, health.RunOnce)
+	sched.Every("cert-watch", 6*time.Hour, certWatch.RunOnce)
 	sched.Start()
 
 	// ---- HTTP ----
