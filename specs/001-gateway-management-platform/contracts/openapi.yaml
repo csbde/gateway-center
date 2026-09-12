@@ -63,6 +63,7 @@ paths:
   /auth/logout:
     post:
       tags: [auth]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "吊销当前会话"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -70,6 +71,7 @@ paths:
   /me:
     get:
       tags: [auth]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "当前用户与其角色"
       responses:
         "200":
@@ -81,6 +83,7 @@ paths:
   /users:
     get:
       tags: [users]
+      x-rbac: [super_admin]
       summary: "用户列表（Super Admin）"
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -91,6 +94,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [users]
+      x-rbac: [super_admin]
       summary: "创建用户并分配角色；权限变更写入审计（FR-038）"
       requestBody:
         content:
@@ -109,11 +113,13 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [users]
+      x-rbac: [super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "404": { $ref: "#/components/responses/NotFound" }
     put:
       tags: [users]
+      x-rbac: [super_admin]
       summary: "修改角色或禁用账号（禁用即时吊销会话）"
       requestBody:
         content:
@@ -129,6 +135,7 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [users]
+      x-rbac: [super_admin]
       summary: "软删除并吊销全部会话；历史审计以 actor 快照列保留可读性"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -137,6 +144,7 @@ paths:
   /nodes:
     get:
       tags: [nodes]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "Gateway Nodes 列表（含运行状态，FR-002）"
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -146,6 +154,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [nodes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "创建节点并开始周期状态探测（AC-001 / UF-1）"
       requestBody:
         content:
@@ -167,6 +176,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [nodes]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -176,11 +186,13 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     put:
       tags: [nodes]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [nodes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除；存在关联 Deployment 时拒绝（UF-1）"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -194,6 +206,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [nodes]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -205,6 +218,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [nodes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "禁用节点；未完成部署冻结为 failed，其资源从生成中排除（Edge Case）"
       responses:
         "200": { $ref: "#/components/responses/Ok" }
@@ -217,6 +231,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [nodes]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "实际态：状态、Traefik 版本、加载集合、Drift 与期望/实际版本（FR-002 / FR-040）"
       responses:
         "200":
@@ -233,6 +248,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [pipeline]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "六类验证（Domain/Route/Service/Middleware/Dependency/生成产物，FR-024）；漂移期间发布前必须先重新验证"
       responses:
         "200":
@@ -249,6 +265,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [pipeline]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "版本历史（FR-032）；列表不含 snapshot/artifact 大字段（SC-006）"
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -257,6 +274,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [pipeline]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "生成 Config Version：pending → validating → ready（UF-4）"
       responses:
         "201":
@@ -276,6 +294,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [pipeline]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "版本详情（自包含快照与生成产物；产物零明文 secret，R7/R8）"
       responses:
         "200":
@@ -285,6 +304,7 @@ paths:
               schema: { $ref: "#/components/schemas/ConfigVersion" }
     delete:
       tags: [pipeline]
+      x-rbac: []
       summary: "任何角色一律拒绝（FR-032 / US7-AC3）"
       responses:
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -301,6 +321,7 @@ paths:
         description: "对比目标版本；缺省为当前最新 success/ready 版本。任意两版本可对比（FR-032）"
     get:
       tags: [pipeline]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "资源级差异（router/service/middleware/tlsconfig 的新增、修改、删除，AC-008 / US2-AC2）"
       responses:
         "200":
@@ -312,6 +333,7 @@ paths:
   /deployments:
     get:
       tags: [deployments]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/NodeId"
@@ -322,6 +344,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [deployments]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: >-
         发布。服务端强制门禁：confirmed=false → 422；production 缺已批准 ReleaseRequest → 422；
         节点离线 → 422（恢复后须人工重新确认，不自动补发）；同节点已有非终态部署 → 409。
@@ -342,6 +365,7 @@ paths:
   /deployments/rollback:
     post:
       tags: [deployments]
+      x-rbac: [gateway_admin, super_admin]
       summary: "回滚：以历史成功版本快照复用同一管线重新发布，生成新 Deployment 与新版本记录（FR-031 / AC-012 / SC-003）"
       requestBody:
         content:
@@ -363,6 +387,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [deployments]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "部署状态与运行时校验结果（FR-030：写入成功不等于生效）"
       responses:
         "200":
@@ -372,6 +397,7 @@ paths:
               schema: { $ref: "#/components/schemas/Deployment" }
     delete:
       tags: [deployments]
+      x-rbac: []
       summary: "不可删除类资源（FR-032）"
       responses:
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -379,6 +405,7 @@ paths:
   /release-requests:
     get:
       tags: [approvals]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - name: status
@@ -388,6 +415,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [approvals]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "提交 production 发布申请（版本须 ready）"
       requestBody:
         content:
@@ -405,6 +433,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [approvals]
+      x-rbac: [gateway_admin, super_admin]
       summary: "批准。批准人 MUST NOT 为提交人本人（DB CHECK 兜底）；审计同时记录提交人与批准人（US6-AC3）"
       requestBody:
         content:
@@ -422,6 +451,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [approvals]
+      x-rbac: [gateway_admin, super_admin]
       requestBody:
         content:
           application/json:
@@ -437,6 +467,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [approvals]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "提交人撤回申请"
       responses:
         "200": { $ref: "#/components/responses/Ok" }
@@ -444,6 +475,7 @@ paths:
   /domains:
     get:
       tags: [domains]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
@@ -453,6 +485,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "创建域名（普通/泛域名，节点内唯一，FR-005）"
       requestBody:
         content:
@@ -473,6 +506,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [domains]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -481,11 +515,13 @@ paths:
               schema: { $ref: "#/components/schemas/Domain" }
     put:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除；被未归档 Route 引用时 409 并返回引用清单（FR-039 / AC-015）"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -499,6 +535,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -510,6 +547,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -521,6 +559,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [domains]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "证书只读观测（状态、到期、SAN；平台不管生命周期，FR-033）"
       responses:
         "200":
@@ -532,6 +571,7 @@ paths:
   /certificates/import:
     post:
       tags: [domains]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "导入自有证书（私钥 AES-256-GCM 入库，永不出响应）"
       requestBody:
         content:
@@ -544,6 +584,7 @@ paths:
   /services:
     get:
       tags: [services]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
@@ -553,6 +594,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "创建 Service（统一抽象，不区分 Docker/主机/远程，FR-009）"
       requestBody:
         content:
@@ -570,6 +612,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [services]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -578,11 +621,13 @@ paths:
               schema: { $ref: "#/components/schemas/UpstreamService" }
     put:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除；被引用时 409 + 引用路由清单（FR-039）"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -596,6 +641,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -607,6 +653,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -618,10 +665,12 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [services]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "添加 Target（地址格式与重复校验，UF-2 / AC-003）"
       requestBody:
         content:
@@ -645,11 +694,13 @@ paths:
         schema: { type: string, format: uuid }
     put:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除 Target"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -666,6 +717,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -681,12 +733,14 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [services]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
   /routes:
     get:
       tags: [routes]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
@@ -699,6 +753,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [routes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: >-
         创建路由草稿。simple 模式返回系统合成规则预览（FR-014，用户不书写语法）；
         advanced 模式仅 Gateway Admin 及以上，越权 403；保存即执行语法与引用校验（Edge Case：两次拦截之一）。
@@ -719,6 +774,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [routes]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -727,6 +783,7 @@ paths:
               schema: { $ref: "#/components/schemas/Route" }
     put:
       tags: [routes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "编辑路由（含 Middleware 顺序）；advanced 模式每次使用强制审计（宪法 X）"
       requestBody:
         content:
@@ -737,6 +794,7 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [routes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除（通常走 archive 路径）"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -749,6 +807,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [routes]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "draft/enabled 状态机迁移（FR-017）；目标资源非法则 422"
       responses:
         "200": { $ref: "#/components/responses/Ok" }
@@ -762,6 +821,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [routes]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -773,6 +833,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [routes]
+      x-rbac: [gateway_admin, super_admin]
       summary: "归档（不影响历史版本快照，FR-017）"
       responses:
         "200": { $ref: "#/components/responses/Ok" }
@@ -780,6 +841,7 @@ paths:
   /routes/validate-advanced:
     post:
       tags: [routes]
+      x-rbac: [gateway_admin, super_admin]
       summary: "高级模式语法验证（Host/Path/PathPrefix/HostRegexp/Headers/Method 与或非组合，FR-015）；纯校验不写入"
       requestBody:
         content:
@@ -796,6 +858,7 @@ paths:
   /middlewares:
     get:
       tags: [middlewares]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
@@ -808,6 +871,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     post:
       tags: [middlewares]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "创建中间件（一期五类，FR-021）；参数按类型独立校验，错误定位到字段"
       requestBody:
         content:
@@ -825,6 +889,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [middlewares]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -833,11 +898,13 @@ paths:
               schema: { $ref: "#/components/schemas/Middleware" }
     put:
       tags: [middlewares]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [middlewares]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "软删除；被 N 条路由引用则阻止并逐条列出（US3-AC3 / AC-015）"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -851,6 +918,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [middlewares]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
@@ -862,18 +930,21 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [middlewares]
+      x-rbac: [developer, gateway_admin, super_admin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }
 
   /credentials:
     get:
       tags: [credentials]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "凭证列表（仅元数据 + fingerprint）"
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [credentials]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "创建 DNS Provider 等凭证（写入即加密）"
       requestBody:
         content:
@@ -891,6 +962,7 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [credentials]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "不回显任何明文值（FR-035）"
       responses:
         "200":
@@ -900,6 +972,7 @@ paths:
               schema: { $ref: "#/components/schemas/SecretCredential" }
     put:
       tags: [credentials]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "轮换凭证：更新值与 fingerprint，域名绑定关系不变（FR-035）"
       requestBody:
         content:
@@ -909,6 +982,7 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
     delete:
       tags: [credentials]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "删除；被域名引用时 409"
       responses:
         "204": { $ref: "#/components/responses/NoContent" }
@@ -922,6 +996,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [credentials]
+      x-rbac: [developer, gateway_admin, super_admin]
       summary: "校验 provider 凭证可用性；失败仅返回原因，不回显凭证（Edge Case）"
       responses:
         "200":
@@ -933,6 +1008,7 @@ paths:
   /dashboard:
     get:
       tags: [observability]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "Dashboard 汇总：在线/离线/漂移节点、资源计数、证书到期预警、最近发布（FR-041）"
       responses:
         "200":
@@ -944,6 +1020,7 @@ paths:
   /audit-logs:
     get:
       tags: [audit]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       summary: "审计检索（只读，任何角色不可修改或删除，FR-038 / NFR-AUD-01）"
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -974,6 +1051,7 @@ paths:
         schema: { type: string }
     get:
       tags: [audit]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -984,6 +1062,7 @@ paths:
   /settings:
     get:
       tags: [settings]
+      x-rbac: [viewer, developer, gateway_admin, super_admin]
       responses:
         "200":
           description: "ok"
@@ -992,6 +1071,7 @@ paths:
               schema: { $ref: "#/components/schemas/PlatformSettings" }
     put:
       tags: [settings]
+      x-rbac: [super_admin]
       summary: "平台设置（时区、探测周期、离线阈值、到期预警天数）"
       requestBody:
         content:
