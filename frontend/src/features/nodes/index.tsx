@@ -156,7 +156,7 @@ export function NodesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">网关节点</h1>
-          <p className="text-sm text-muted-foreground">纳管的 Traefik 实例：平台生成配置并原子下发，运行时逐路由器校验。</p>
+          <p className="text-sm text-muted-foreground">纳管的 Traefik 实例：平台生成配置并原子下发，运行时逐路由校验生效。</p>
         </div>
         {writable && <Button onClick={() => setEditing("new")}>新建网关</Button>}
       </div>

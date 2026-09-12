@@ -115,7 +115,7 @@ function DomainForm({ domain, nodeId, onClose }: { domain: Domain | null; nodeId
           <Field
             label="证书签发服务名"
             htmlFor="dom-resolver"
-            hint="网关静态配置中预置的解析器名称"
+            hint="运维在网关静态配置中预置的签发服务名"
             error={serverErr.cert_resolver_ref ?? serverErr.dns_credential_id}
           >
             <Input id="dom-resolver" placeholder="默认签发服务" {...register("cert_resolver_ref")} />

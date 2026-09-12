@@ -213,7 +213,7 @@
 - [ ] T093 quickstart.md V-1~V-9 端到端全量回归（含 §2 全新环境可复现性）
 - [ ] T094 [P] 文档：README.md（启动、POSIX rename 共享卷前置、Static 预配要求）+ docs/runbook.md（备份/主密钥轮换/故障排查）
 - [ ] T095 SC-001 首次使用计时走查：新账号冷启动 15 分钟内完成服务+域名+路由+发布，结果与步骤截图记录于 docs/verification/sc-001.md（验收证据）
-- [ ] T096 [P] UI 术语复查：普通页面零 Traefik 术语、术语仅现于高级模式/技术详情/Debug（FR-042，frontend/src/features 扫描）
+- [X] T096 [P] UI 术语复查：普通页面零 Traefik 术语、术语仅现于高级模式/技术详情/Debug（FR-042，frontend/src/features 扫描）
 
 ---
 
