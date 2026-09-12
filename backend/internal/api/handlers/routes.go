@@ -36,7 +36,7 @@ func (h *Handler) CreateRoute(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, badRequest(err))
 		return
 	}
-	v, apiErr := h.Routes.Create(r.Context(), in, actorID(r))
+	v, apiErr := h.Routes.Create(r.Context(), in, principalOf(r))
 	if apiErr != nil {
 		writeErr(w, r, apiErr)
 		return
@@ -50,7 +50,7 @@ func (h *Handler) UpdateRoute(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, badRequest(err))
 		return
 	}
-	v, apiErr := h.Routes.Update(r.Context(), urlParam(r, "id"), in, actorID(r))
+	v, apiErr := h.Routes.Update(r.Context(), urlParam(r, "id"), in, principalOf(r))
 	if apiErr != nil {
 		writeErr(w, r, apiErr)
 		return
@@ -87,6 +87,24 @@ func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ValidateAdvancedRoute POST /routes/validate-advanced —— 高级模式语法验证（T060，FR-015）。
+// 纯校验不写入；响应含固定 risk_notice（FR-016）。端点在 GatewayAdminOrAbove 组，服务层再复核。
+func (h *Handler) ValidateAdvancedRoute(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Rule string `json:"rule"`
+	}
+	if err := queryutil.DecodeStrict(r.Body, &in); err != nil {
+		writeErr(w, r, badRequest(err))
+		return
+	}
+	res, apiErr := h.Routes.ValidateAdvanced(r.Context(), in.Rule, principalOf(r))
+	if apiErr != nil {
+		writeErr(w, r, apiErr)
+		return
+	}
+	queryutil.WriteObject(w, http.StatusOK, res)
 }
 
 // PreviewRoute POST /routes/preview —— 向导实时规则回显（FR-014，零语法）。

@@ -47,6 +47,8 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 			r.Get("/services/{id}/targets", h.ListTargets)
 			r.Get("/routes", h.ListRoute)
 			r.Get("/routes/{id}", h.GetRoute)
+			r.Get("/middlewares", h.ListMiddleware)
+			r.Get("/middlewares/{id}", h.GetMiddleware)
 			r.Get("/nodes/{id}/versions", h.ListVersions)
 			r.Get("/versions/{id}", h.GetVersion)
 			r.Get("/versions/{id}/diff", h.DiffVersion)
@@ -88,6 +90,12 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 				r.Post("/routes/{id}/disable", h.DisableRoute)
 				r.Delete("/routes/{id}", h.DeleteRoute)
 
+				r.Post("/middlewares", h.CreateMiddleware)
+				r.Put("/middlewares/{id}", h.UpdateMiddleware)
+				r.Post("/middlewares/{id}/enable", h.EnableMiddleware)
+				r.Post("/middlewares/{id}/disable", h.DisableMiddleware)
+				r.Delete("/middlewares/{id}", h.DeleteMiddleware)
+
 				// 管线：验证/生成版本/发布 developer+（production 审批门禁在 DeployService Gate）
 				r.Post("/nodes/{id}/validate", h.ValidateNode)
 				r.Post("/nodes/{id}/versions", h.CreateVersion)
@@ -99,6 +107,8 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 				r.Use(middleware.GatewayAdminOrAbove)
 				r.Post("/deployments/rollback", h.Rollback)
 				r.Post("/routes/{id}/archive", h.ArchiveRoute)
+				// 高级模式语法验证（FR-015；保存路径的服务层复核在 routesvc.checkAdvanced）
+				r.Post("/routes/validate-advanced", h.ValidateAdvancedRoute)
 			})
 
 			// 不可变记录：任何角色 DELETE 即 403（FR-032）

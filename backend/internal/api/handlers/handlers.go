@@ -16,6 +16,7 @@ import (
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
 	"gateway-center/backend/internal/application/domainsvc"
+	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
 	"gateway-center/backend/internal/application/pipeline"
 	"gateway-center/backend/internal/application/routesvc"
@@ -27,18 +28,19 @@ import (
 
 // Handler 全部资源控制器的依赖集（router.go 构造一次注入）。
 type Handler struct {
-	Auth     *authsvc.Service
-	Nodes    *nodesvc.Service
-	Domains  *domainsvc.Service
-	Certs    *certsvc.Service
-	Services *servicesvc.Service
-	Routes   *routesvc.Service
-	Versions *pipeline.VersionService
-	Deploys  *pipeline.DeployService
-	Settings *settingsvc.Service
-	Vers     *pgstore.VersionRepo
-	Deps     *pgstore.DeploymentRepo
-	wg       sync.WaitGroup // 在途部署（graceful shutdown 等待）
+	Auth        *authsvc.Service
+	Nodes       *nodesvc.Service
+	Domains     *domainsvc.Service
+	Certs       *certsvc.Service
+	Services    *servicesvc.Service
+	Routes      *routesvc.Service
+	Middlewares *mwsvc.Service
+	Versions    *pipeline.VersionService
+	Deploys     *pipeline.DeployService
+	Settings    *settingsvc.Service
+	Vers        *pgstore.VersionRepo
+	Deps        *pgstore.DeploymentRepo
+	wg          sync.WaitGroup // 在途部署（graceful shutdown 等待）
 }
 
 // WaitBackground 阻塞至全部后台部署结束（serve 关停时调用）。
@@ -53,6 +55,12 @@ func actorOf(r *http.Request) nodesvc.Actor {
 func actorID(r *http.Request) string {
 	id, _, _ := middleware.ActorFrom(r.Context())
 	return id
+}
+
+// principalOf 给需要角色判定/service 层再校验的用例（高级模式 T060）。
+func principalOf(r *http.Request) routesvc.Principal {
+	id, _, role := middleware.ActorFrom(r.Context())
+	return routesvc.Principal{ID: id, Role: string(role)}
 }
 
 func clientIP(r *http.Request) string {

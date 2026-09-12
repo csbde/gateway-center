@@ -24,6 +24,7 @@ import (
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
 	"gateway-center/backend/internal/application/domainsvc"
+	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
 	"gateway-center/backend/internal/application/pipeline"
 	"gateway-center/backend/internal/application/routesvc"
@@ -66,12 +67,13 @@ func newApp(t *testing.T) *app {
 	tm := tokensx.NewManager(testenv.MustHexKey(t, testenv.TestKey), time.Hour)
 	nodeSvc := nodesvc.New(nodes, rec, env.Cipher)
 	h := &handlers.Handler{
-		Auth:     authsvc.NewService(users, toks, tm, rec, 7*24*time.Hour),
-		Nodes:    nodeSvc,
-		Domains:  domainsvc.New(doms, nodes, rec),
-		Certs:    certsvc.New(certs, doms, env.Cipher, rec),
-		Services: servicesvc.New(svcs, targets, nodes, rec),
-		Routes:   routesvc.New(routes, doms, svcs, mws, nodes, rec),
+		Auth:        authsvc.NewService(users, toks, tm, rec, 7*24*time.Hour),
+		Nodes:       nodeSvc,
+		Domains:     domainsvc.New(doms, nodes, rec),
+		Certs:       certsvc.New(certs, doms, env.Cipher, rec),
+		Services:    servicesvc.New(svcs, targets, nodes, rec),
+		Routes:      routesvc.New(routes, doms, svcs, mws, nodes, rec),
+		Middlewares: mwsvc.New(mws, nodes, rec),
 		Versions: pipeline.NewVersionService(
 			pipeline.NewGraphLoader(nodes, doms, svcs, targets, routes, mws),
 			vers, deploys, certs, env.Cipher, rec),

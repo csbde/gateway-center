@@ -23,6 +23,7 @@ import (
 	"gateway-center/backend/internal/application/certsvc"
 	"gateway-center/backend/internal/application/domainsvc"
 	"gateway-center/backend/internal/application/healthsvc"
+	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
 	"gateway-center/backend/internal/application/pipeline"
 	"gateway-center/backend/internal/application/probesvc"
@@ -119,17 +120,18 @@ func runServe(args []string) error {
 		deployer.NewFileDeployer(), traefikFactory, rec, nil)
 
 	h := &handlers.Handler{
-		Auth:     authSvc,
-		Nodes:    nodeSvc,
-		Domains:  domainsvc.New(doms, nodes, rec),
-		Certs:    certsvc.New(certs, doms, cipher, rec),
-		Services: servicesvc.New(svcs, targets, nodes, rec),
-		Routes:   routesvc.New(routes, doms, svcs, mws, nodes, rec),
-		Versions: versionSvc,
-		Deploys:  deploySvc,
-		Settings: settingsSvc,
-		Vers:     vers,
-		Deps:     deploys,
+		Auth:        authSvc,
+		Nodes:       nodeSvc,
+		Domains:     domainsvc.New(doms, nodes, rec),
+		Certs:       certsvc.New(certs, doms, cipher, rec),
+		Services:    servicesvc.New(svcs, targets, nodes, rec),
+		Routes:      routesvc.New(routes, doms, svcs, mws, nodes, rec),
+		Middlewares: mwsvc.New(mws, nodes, rec),
+		Versions:    versionSvc,
+		Deploys:     deploySvc,
+		Settings:    settingsSvc,
+		Vers:        vers,
+		Deps:        deploys,
 	}
 
 	// ---- scheduler：节点探测 + Target 健康 ----

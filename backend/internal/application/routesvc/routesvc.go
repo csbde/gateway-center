@@ -1,6 +1,7 @@
 // Package routesvc 路由用例（T035，AC-004、FR-014）。
 // 简单模式：用户零 Traefik 语法，保存即回显 generated_rule_preview（与 generate/validate 同源）。
-// 高级模式写路径在 US3 T060 接线（仅 gateway_admin+）。
+// 高级模式写路径（T060，FR-015/016、宪法 II/X）：仅 gateway_admin+，advrule 白名单文法强校验，
+// 每次使用写 advanced_edit 审计（resource_id=route_id）；简单模式全流程不感知高级字段（双模式隔离）。
 package routesvc
 
 import (
@@ -11,10 +12,25 @@ import (
 	"gateway-center/backend/internal/api/httperr"
 	"gateway-center/backend/internal/application/auditrec"
 	"gateway-center/backend/internal/domain"
+	"gateway-center/backend/internal/domain/advrule"
 	"gateway-center/backend/internal/domain/state"
 	"gateway-center/backend/internal/generate"
 	"gateway-center/backend/internal/infrastructure/pgstore"
 )
+
+// Principal 调用者身份（handler 从认证上下文装配；rank 用于角色下限判断）。
+type Principal struct {
+	ID   string
+	Role string
+}
+
+var roleRank = map[string]int{"viewer": 0, "developer": 1, "gateway_admin": 2, "super_admin": 3}
+
+func (p Principal) atLeast(min string) bool { return roleRank[p.Role] >= roleRank[min] }
+
+// RiskNotice 高级模式固定风险提示（FR-016 四项；validate-advanced 与保存路径同一文案源）。
+const RiskNotice = "高级模式直接编写网关匹配表达式：写错会导致流量无法匹配；该表达式不受简单向导约束，" +
+	"保存与每次修改都会进入审计并需 gateway_admin 以上权限；请确认你理解 &&/|| 与函数语义后再发布。"
 
 type Service struct {
 	routes *pgstore.RouteRepo
@@ -84,7 +100,15 @@ func (s *Service) Preview(ctx context.Context, in Input) (string, *httperr.APIEr
 	return generate.RuleForSimple(d.Name, in.Path, in.MatchType), nil
 }
 
-func (s *Service) Create(ctx context.Context, in Input, actorID string) (*View, *httperr.APIError) {
+func (s *Service) Create(ctx context.Context, in Input, actor Principal) (*View, *httperr.APIError) {
+	mode := defaultStr(in.Mode, "simple")
+	if mode == "advanced" {
+		if apiErr := s.checkAdvanced(ctx, in, actor); apiErr != nil {
+			return nil, apiErr
+		}
+	} else {
+		in.AdvancedRule = "" // 宪法 II：简单模式不携带高级字段（双模式隔离）
+	}
 	if apiErr := s.validateInput(ctx, in); apiErr != nil {
 		return nil, apiErr
 	}
@@ -101,7 +125,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*View, 
 	}
 	rt := &domain.Route{
 		NodeID: in.NodeID, Name: strings.TrimSpace(in.Name),
-		Mode:     defaultStr(in.Mode, "simple"),
+		Mode:     mode,
 		DomainID: nilIfEmpty(in.DomainID), Path: in.Path,
 		MatchType: defaultStr(in.MatchType, "prefix"),
 		ServiceID: in.ServiceID, HTTPS: in.HTTPS,
@@ -109,7 +133,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*View, 
 		AdvancedRule: strings.TrimSpace(in.AdvancedRule),
 		Status:       "draft", // 新建即草稿，发布链负责 enabled
 	}
-	rt.SetActor(actorID)
+	rt.SetActor(actor.ID)
 	if err := s.routes.Create(ctx, rt); err != nil {
 		if isUnique(err) {
 			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name"})
@@ -125,16 +149,34 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*View, 
 	if apiErr != nil {
 		return nil, apiErr
 	}
-	s.audit.Record(ctx, nil, ev(actorID, "create", rt.ID, rt.Name, nil, v))
+	s.audit.Record(ctx, nil, ev(actor.ID, "create", rt.ID, rt.Name, nil, v))
+	if mode == "advanced" {
+		s.auditAdvanced(ctx, actor.ID, rt.ID, rt.Name, rt.AdvancedRule)
+	}
 	return v, nil
 }
 
-func (s *Service) Update(ctx context.Context, id string, in Input, actorID string) (*View, *httperr.APIError) {
+func (s *Service) Update(ctx context.Context, id string, in Input, actor Principal) (*View, *httperr.APIError) {
 	rt, err := s.routes.Get(ctx, id)
 	if err != nil {
 		return nil, mapNotFound(err, "路由")
 	}
 	in.NodeID = rt.NodeID
+	// 模式切换（simple↔advanced）也走高级门禁；未提供 mode 时保持原模式。
+	targetMode := defaultStr(in.Mode, rt.Mode)
+	if targetMode == "advanced" {
+		if strings.TrimSpace(in.AdvancedRule) == "" {
+			in.AdvancedRule = rt.AdvancedRule // 仅改其他字段时沿用已存表达式（仍复核角色）
+		}
+		if apiErr := s.checkAdvanced(ctx, in, actor); apiErr != nil {
+			return nil, apiErr
+		}
+	} else {
+		in.AdvancedRule = rt.AdvancedRule
+		if rt.Mode == "advanced" {
+			in.AdvancedRule = "" // advanced→simple：清空高级表达式
+		}
+	}
 	if apiErr := s.validateInput(ctx, in); apiErr != nil {
 		return nil, apiErr
 	}
@@ -143,11 +185,11 @@ func (s *Service) Update(ctx context.Context, id string, in Input, actorID strin
 	}
 	before := *rt
 	fields := map[string]any{
-		"name": strings.TrimSpace(in.Name), "mode": rt.Mode,
+		"name": strings.TrimSpace(in.Name), "mode": targetMode,
 		"domain_id": nilIfEmpty(in.DomainID), "path": in.Path,
 		"match_type": defaultStr(in.MatchType, "prefix"), "service_id": in.ServiceID,
 		"https": in.HTTPS, "advanced_rule": strings.TrimSpace(in.AdvancedRule),
-		"updated_by": actorID,
+		"updated_by": actor.ID,
 	}
 	if err := s.routes.Update(ctx, rt, in.ExpectedVersion, fields); err != nil {
 		if errors.Is(err, pgstore.ErrConflict) {
@@ -167,7 +209,10 @@ func (s *Service) Update(ctx context.Context, id string, in Input, actorID strin
 	if apiErr != nil {
 		return nil, apiErr
 	}
-	s.audit.Record(ctx, nil, ev(actorID, "update", id, fresh.Name, before, fresh))
+	s.audit.Record(ctx, nil, ev(actor.ID, "update", id, fresh.Name, before, fresh))
+	if targetMode == "advanced" {
+		s.auditAdvanced(ctx, actor.ID, id, fresh.Name, fresh.AdvancedRule)
+	}
 	return fresh, nil
 }
 
@@ -212,9 +257,8 @@ func (s *Service) validateInput(ctx context.Context, in Input) *httperr.APIError
 	if mode != "simple" && mode != "advanced" {
 		return httperr.ValidationFailed("模式仅 simple/advanced", httperr.Detail{Field: "mode"})
 	}
-	if mode == "advanced" {
-		return httperr.Newf(403, "FORBIDDEN", "高级模式路由需 gateway_admin 及以上且经 US3 专用端点保存")
-	}
+	// advanced 模式的角色/表达式校验在 Create/Update 前置的 checkAdvanced 完成；
+	// 此处仅确保表达式非空（写入前已被强校验，空值即数据不一致）。
 	if in.NodeID == "" {
 		return httperr.ValidationFailed("node_id 必填", httperr.Detail{Field: "node_id"})
 	}
@@ -244,6 +288,54 @@ func (s *Service) validateInput(ctx context.Context, in Input) *httperr.APIError
 		}
 	}
 	return nil
+}
+
+// checkAdvanced 高级模式写路径统一前置门禁（T060）：角色 ≥gateway_admin（FR-015）
+// + 白名单文法强校验（FR-016「保存即校验」）。错误信息定位到表达式问题本身。
+func (s *Service) checkAdvanced(ctx context.Context, in Input, actor Principal) *httperr.APIError {
+	if !actor.atLeast("gateway_admin") {
+		return httperr.Newf(403, "FORBIDDEN", "高级模式路由仅 gateway_admin 及以上可保存")
+	}
+	rule := strings.TrimSpace(in.AdvancedRule)
+	if rule == "" {
+		return httperr.ValidationFailed("高级模式必须提供规则表达式", httperr.Detail{Field: "advanced_rule", Hint: "如 Host(`crm.example.com`) && PathPrefix(`/api`)"})
+	}
+	if msg := advrule.Validate(rule); msg != "" {
+		return httperr.ValidationFailed("高级表达式不合法: "+msg, httperr.Detail{Field: "advanced_rule", Hint: "仅支持 Host/HostRegexp/Path/PathPrefix/Headers/HeadersRegexp/Method 与 &&/||/括号"})
+	}
+	return nil
+}
+
+// AdvancedValidateResult POST /routes/validate-advanced 响应体（纯校验，不写库）。
+type AdvancedValidateResult struct {
+	Valid             bool             `json:"valid"`
+	Issues            []map[string]any `json:"issues"`
+	RiskNotice        string           `json:"risk_notice"`
+	NormalizedPreview string           `json:"normalized_preview"`
+}
+
+// ValidateAdvanced 供实时语法验证端点；同样要求 gateway_admin+（端点在路由组已守卫，
+// 服务层再复核一次——宪法 XII 纵深防御）。
+func (s *Service) ValidateAdvanced(ctx context.Context, rule string, actor Principal) (*AdvancedValidateResult, *httperr.APIError) {
+	if !actor.atLeast("gateway_admin") {
+		return nil, httperr.Newf(403, "FORBIDDEN", "高级模式仅 gateway_admin 及以上可用")
+	}
+	res := &AdvancedValidateResult{RiskNotice: RiskNotice, Issues: []map[string]any{}}
+	rule = strings.TrimSpace(rule)
+	if msg := advrule.Validate(rule); msg != "" {
+		res.Issues = append(res.Issues, map[string]any{"message": msg})
+	} else {
+		res.Valid = true
+		res.NormalizedPreview = advrule.Normalize(rule)
+	}
+	return res, nil
+}
+
+// auditAdvanced 每次使用高级模式写 advanced_edit 审计（FR-016/宪法 X）。
+func (s *Service) auditAdvanced(ctx context.Context, actorID, routeID, routeName, rule string) {
+	s.audit.Record(ctx, nil, auditrec.Event{ActorID: actorID, Action: "advanced_edit",
+		ResourceType: "route", ResourceID: routeID, ResourceName: routeName,
+		After: map[string]any{"advanced_rule": rule, "risk_notice_ack": true}})
 }
 
 func (s *Service) bindMiddlewares(ctx context.Context, routeID string, mwIDs []string, nodeID string) *httperr.APIError {

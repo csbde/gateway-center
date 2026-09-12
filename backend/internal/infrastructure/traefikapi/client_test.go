@@ -12,13 +12,16 @@ import (
 )
 
 func TestPlatformName(t *testing.T) {
-	cases := []struct{ in, want string; ok bool }{
-		{"crm-main@file", "crm-main", true},   // file provider 后缀剥离（与快照裸名比对）
-		{"crm-main", "crm-main", true},        // 裸名（fake/直连）
-		{"api@internal", "", false},           // Traefik 内建：治理域外
+	cases := []struct {
+		in, want string
+		ok       bool
+	}{
+		{"crm-main@file", "crm-main", true}, // file provider 后缀剥离（与快照裸名比对）
+		{"crm-main", "crm-main", true},      // 裸名（fake/直连）
+		{"api@internal", "", false},         // Traefik 内建：治理域外
 		{"dashboard@internal", "", false},
-		{"@file", "", false},                  // 异常空名
-		{"tcp-x@tcp", "tcp-x", true},          // 非 file 后缀保留基础名（不误剔）
+		{"@file", "", false},         // 异常空名
+		{"tcp-x@tcp", "tcp-x", true}, // 非 file 后缀保留基础名（不误剔）
 	}
 	for _, c := range cases {
 		got, ok := platformName(c.in)
