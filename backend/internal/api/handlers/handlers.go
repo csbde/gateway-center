@@ -25,6 +25,7 @@ import (
 	"gateway-center/backend/internal/application/routesvc"
 	"gateway-center/backend/internal/application/servicesvc"
 	"gateway-center/backend/internal/application/settingsvc"
+	"gateway-center/backend/internal/application/usersvc"
 	"gateway-center/backend/internal/infrastructure/pgstore"
 	"github.com/go-chi/chi/v5"
 )
@@ -43,6 +44,7 @@ type Handler struct {
 	Versions    *pipeline.VersionService
 	Deploys     *pipeline.DeployService
 	Settings    *settingsvc.Service
+	Users       *usersvc.Service
 	Approvals   *approvalsvc.Service
 	Vers        *pgstore.VersionRepo
 	Deps        *pgstore.DeploymentRepo

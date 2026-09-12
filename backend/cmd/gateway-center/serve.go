@@ -35,6 +35,7 @@ import (
 	"gateway-center/backend/internal/application/scheduler"
 	"gateway-center/backend/internal/application/servicesvc"
 	"gateway-center/backend/internal/application/settingsvc"
+	"gateway-center/backend/internal/application/usersvc"
 	"gateway-center/backend/internal/domain"
 	"gateway-center/backend/internal/infrastructure/certwatch"
 	"gateway-center/backend/internal/infrastructure/config"
@@ -140,6 +141,7 @@ func runServe(args []string) error {
 		Versions:    versionSvc,
 		Deploys:     deploySvc,
 		Settings:    settingsSvc,
+		Users:       usersvc.New(users, toks, rec),
 		Approvals:   approvalsvc.New(approvals, vers, rec),
 		Vers:        vers,
 		Deps:        deploys,

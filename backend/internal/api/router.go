@@ -139,6 +139,13 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.SuperAdminOnly)
 				r.Put("/settings", h.UpdateSettings)
+
+				// 用户管理：仅 super_admin（FR-036；permission_change 审计 + 禁用吊销会话）
+				r.Get("/users", h.ListUsers)
+				r.Post("/users", h.CreateUser)
+				r.Get("/users/{id}", h.GetUser)
+				r.Put("/users/{id}", h.UpdateUser)
+				r.Delete("/users/{id}", h.DeleteUser)
 			})
 		})
 	})
