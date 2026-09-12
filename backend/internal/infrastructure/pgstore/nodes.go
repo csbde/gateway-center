@@ -74,3 +74,10 @@ func (r *NodeRepo) AllIDs(ctx context.Context) ([]string, error) {
 		Where("deleted_at IS NULL").Pluck("id", &ids).Error
 	return ids, err
 }
+
+// AllStates 供 Dashboard 聚合在线/离线/漂移计数（T068/T073）。
+func (r *NodeRepo) AllStates(ctx context.Context) ([]domain.NodeState, error) {
+	var ss []domain.NodeState
+	err := r.db.WithContext(ctx).Find(&ss).Error
+	return ss, err
+}

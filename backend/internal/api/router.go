@@ -49,6 +49,10 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 			r.Get("/routes/{id}", h.GetRoute)
 			r.Get("/middlewares", h.ListMiddleware)
 			r.Get("/middlewares/{id}", h.GetMiddleware)
+			r.Get("/credentials", h.ListCredentials)
+			r.Get("/credentials/{id}", h.GetCredential)
+			r.Get("/domains/{id}/certificate", h.DomainCertificate)
+			r.Get("/dashboard", h.Dashboard)
 			r.Get("/nodes/{id}/versions", h.ListVersions)
 			r.Get("/versions/{id}", h.GetVersion)
 			r.Get("/versions/{id}/diff", h.DiffVersion)
@@ -95,6 +99,12 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 				r.Post("/middlewares/{id}/enable", h.EnableMiddleware)
 				r.Post("/middlewares/{id}/disable", h.DisableMiddleware)
 				r.Delete("/middlewares/{id}", h.DeleteMiddleware)
+
+				// 凭证：写入即加密、仅 fingerprint 回显（FR-035/宪章 VIII）
+				r.Post("/credentials", h.CreateCredential)
+				r.Put("/credentials/{id}", h.UpdateCredential)
+				r.Post("/credentials/{id}/verify", h.VerifyCredential)
+				r.Delete("/credentials/{id}", h.DeleteCredential)
 
 				// 管线：验证/生成版本/发布 developer+（production 审批门禁在 DeployService Gate）
 				r.Post("/nodes/{id}/validate", h.ValidateNode)

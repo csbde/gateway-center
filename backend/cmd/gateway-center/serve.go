@@ -21,6 +21,8 @@ import (
 	"gateway-center/backend/internal/application/auditrec"
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
+	"gateway-center/backend/internal/application/credsvc"
+	"gateway-center/backend/internal/application/dashboardsvc"
 	"gateway-center/backend/internal/application/domainsvc"
 	"gateway-center/backend/internal/application/healthsvc"
 	"gateway-center/backend/internal/application/mwsvc"
@@ -83,6 +85,7 @@ func runServe(args []string) error {
 	vers := pgstore.NewVersionRepo(store.DB)
 	deploys := pgstore.NewDeploymentRepo(store.DB)
 	certs := pgstore.NewCertRepo(store.DB)
+	creds := pgstore.NewCredentialRepo(store.DB)
 	users := pgstore.NewUserRepo(store.DB)
 	toks := pgstore.NewTokenRepo(store.DB)
 	setRepo := pgstore.NewSettingsRepo(store.DB)
@@ -124,6 +127,8 @@ func runServe(args []string) error {
 		Nodes:       nodeSvc,
 		Domains:     domainsvc.New(doms, nodes, rec),
 		Certs:       certsvc.New(certs, doms, cipher, rec),
+		Credentials: credsvc.New(creds, cipher, rec),
+		Dash:        dashboardsvc.New(nodes, doms, svcs, routes, mws, certs, deploys, setRepo),
 		Services:    servicesvc.New(svcs, targets, nodes, rec),
 		Routes:      routesvc.New(routes, doms, svcs, mws, nodes, rec),
 		Middlewares: mwsvc.New(mws, nodes, rec),

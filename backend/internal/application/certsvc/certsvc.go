@@ -178,3 +178,42 @@ func StatusOf(c *domain.Certificate, warnDays int) string {
 	}
 	return certStatus(*c.NotAfter, warnDays)
 }
+
+// CertView 证书只读观测（FR-033；私钥/PEM 永不出，宪章 VIII）。
+type CertView struct {
+	Source     string     `json:"source"` // acme/imported/none
+	Status     string     `json:"status"` // valid/expiring_soon/expired/missing/unknown
+	NotBefore  *time.Time `json:"not_before,omitempty"`
+	NotAfter   *time.Time `json:"not_after,omitempty"`
+	Issuer     string     `json:"issuer,omitempty"`
+	Sans       []string   `json:"sans,omitempty"`
+	ObservedAt *time.Time `json:"observed_at,omitempty"`
+}
+
+// View 供 GET /domains/{id}/certificate（T068）：域名无证书→source=none/status=missing；
+// 有证书则按域名 expiry_warn_days 现算 status（不读 DB 陈旧值）。
+func (s *Service) View(ctx context.Context, domainID string) (*CertView, *httperr.APIError) {
+	d, err := s.domains.Get(ctx, domainID)
+	if err != nil {
+		if errors.Is(err, pgstore.ErrNotFound) {
+			return nil, httperr.NotFound("域名")
+		}
+		return nil, httperr.Internal(err)
+	}
+	warnDays := d.ExpiryWarnDays
+	if warnDays <= 0 {
+		warnDays = 30
+	}
+	c, err := s.certs.ByDomain(ctx, domainID)
+	if errors.Is(err, pgstore.ErrNotFound) {
+		return &CertView{Source: "none", Status: "missing"}, nil
+	}
+	if err != nil {
+		return nil, httperr.Internal(err)
+	}
+	return &CertView{
+		Source: c.Source, Status: StatusOf(c, warnDays),
+		NotBefore: c.NotBefore, NotAfter: c.NotAfter,
+		Issuer: c.Issuer, Sans: c.Sans, ObservedAt: c.ObservedAt,
+	}, nil
+}

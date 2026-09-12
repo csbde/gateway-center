@@ -15,6 +15,8 @@ import (
 	"gateway-center/backend/internal/api/queryutil"
 	"gateway-center/backend/internal/application/authsvc"
 	"gateway-center/backend/internal/application/certsvc"
+	"gateway-center/backend/internal/application/credsvc"
+	"gateway-center/backend/internal/application/dashboardsvc"
 	"gateway-center/backend/internal/application/domainsvc"
 	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
@@ -32,6 +34,8 @@ type Handler struct {
 	Nodes       *nodesvc.Service
 	Domains     *domainsvc.Service
 	Certs       *certsvc.Service
+	Credentials *credsvc.Service
+	Dash        *dashboardsvc.Service
 	Services    *servicesvc.Service
 	Routes      *routesvc.Service
 	Middlewares *mwsvc.Service
