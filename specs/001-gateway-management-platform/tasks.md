@@ -95,7 +95,7 @@
 
 - [X] T049 [P] [US1] 契约测试 backend/tests/contract/us1_crud_test.go：/nodes /domains /services /routes /versions /deployments 状态码、错误体、409 乐观锁、私钥与 api_auth 脱敏断言
 - [X] T050 [US1] 集成测试 backend/tests/integration/pipeline_e2e_test.go：空平台到 success 全链 + 无旁路（未 validate/未确认/离线三种 422）+ 原子性采样（make test-pipeline）
-- [ ] T051 [US1] E2E frontend/tests/e2e/uf1-publish.spec.ts：quickstart V-1 步骤 1–9，含 15 分钟计时断言（SC-001）
+- [X] T051 [US1] E2E frontend/tests/e2e/uf1-publish.spec.ts：quickstart V-1 步骤 1–9，含 15 分钟计时断言（SC-001）
 
 **Checkpoint**: MVP 可独立交付——HTTP/自有证书 + 纯转发路由端到端发布生效并验证
 
@@ -181,7 +181,7 @@
 - [X] T079 [US6] 审计：backend/internal/api/handlers/audits.go——GET /audit-logs 检索（actor/action/resource_type/from/to 分页）+ /audit-logs/{id}；backend/migrations/0002_audit_partitions.sql——按月 RANGE 分区、UPDATE/DELETE revoke（FR-038/NFR-AUD-01/宪法 X）
 - [X] T080 [US6] 用户管理：backend/internal/api/handlers/users.go（仅 super_admin）、permission_change 审计、禁用即时吊销会话（FR-036）
 - [X] T081 [P] [US6] 前端：Audit Logs 检索页 frontend/src/routes/audits.tsx、Users 管理页 frontend/src/routes/users.tsx、审批收件箱（Diff 审阅 + approve/reject 合一）frontend/src/routes/deployments.tsx 扩展
-- [ ] T082 [P] [US6] 测试：backend/tests/integration/rbac_approval_test.go——TestRBACMatrix（四角色×端点矩阵）、V-6（自批拒绝、双身份审计、审计篡改被 DB 拒）
+- [X] T082 [P] [US6] 测试：backend/tests/integration/rbac_approval_test.go——TestRBACMatrix（四角色×端点矩阵）、V-6（自批拒绝、双身份审计、审计篡改被 DB 拒）
 
 **Checkpoint**: 企业治理闭环；权限变更本身可审计
 
@@ -195,9 +195,9 @@
 
 - [X] T083 [US7] backend/internal/domain/depcheck/：引用图查询（Domain/Service/Middleware→未归档引用路由清单）；三资源 DELETE 端点统一 409 DEPENDENCY_BLOCKED + details 引用方（FR-039/US7-AC1）
 - [X] T084 [US7] 处置流守卫：archive 终态迁移（Route 状态机接线 backend/internal/domain/state）、disabled/archived 资源生成排除（backend/internal/application/pipeline/version.go）、节点禁用冻结未完成部署（Edge Case）
-- [ ] T085 [P] [US7] 删除不变式测试化支撑：backend/tests/integration/softdelete_snapshot_test.go——软删后新版本排除该资源、历史 ConfigVersion 快照读取不受影响、版本/部署/审计 DELETE 一律 403 复查（US7-AC2/03；与 T087 不同文件并行）
+- [X] T085 [P] [US7] 删除不变式测试化支撑：backend/tests/integration/softdelete_snapshot_test.go——软删后新版本排除该资源、历史 ConfigVersion 快照读取不受影响、版本/部署/审计 DELETE 一律 403 复查（US7-AC2/03；与 T087 不同文件并行）
 - [X] T086 [P] [US7] 前端：删除阻止对话框 + 引用清单 + 「先解除依赖」引导 frontend/src/features/common/dependency-block.tsx（nodes/domains/services/middlewares 页接入）；Route 归档操作
-- [ ] T087 [P] [US7] 集成测试 backend/tests/integration/dependency_test.go：V-7 全场景（引用链、三种处置、快照完整性）
+- [X] T087 [P] [US7] 集成测试 backend/tests/integration/dependency_test.go：V-7 全场景（引用链、三种处置、快照完整性）
 
 **Checkpoint**: 误删不致不可解释流量中断（宪法 VI）
 
