@@ -159,7 +159,7 @@
 
 **Independent Test**: quickstart.md V-5——人为漂移 ≤2 分钟可见、发布后清除、断网判 offline
 
-- [ ] T071 [US5] backend/internal/application/probesvc 完整化：连续 3 次失败→offline + last_online_at 保留；degraded=可达但启用 Target 失败/加载错误（FR-003/spec Assumption）
+- [X] T071 [US5] backend/internal/application/probesvc 完整化：连续 3 次失败→offline + last_online_at 保留；degraded=可达但启用 Target 失败/加载错误（FR-003/spec Assumption）
 - [ ] T072 [US5] backend/internal/application/driftsvc/service.go：每轮探测比对 desired vs actual（版本 + 资源集合）→ node_states.drift/drift_detail；成功发布+校验清除；漂移期间 deploy 要求先重新 validate（Edge Case）
 - [ ] T073 [US5] backend/internal/api/handlers/dashboard.go：GET /dashboard 完整聚合（online/offline/drift 计数、资源数、最近发布）+ GET /nodes/{id}/state 全字段
 - [ ] T074 [P] [US5] 前端：Dashboard 真实数据与漂移汇总卡 frontend/src/routes/dashboard.tsx、节点详情「平台意图 vs 网关加载确认」双列 + drift 红标与 diff 面板 frontend/src/features/nodes/StatePanel.tsx

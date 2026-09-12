@@ -1,5 +1,6 @@
 // Package probesvc 节点健康探测（T040，FR-002/003；完整 offline/degraded 判定 US5 T071）。
 // 每周期 GET /api/overview + 资源集合摘要回写 node_states（desired/actual 分列，宪章 XI 的 actual 侧数据源）。
+// 状态判定：连续失败达阈值→offline（last_online_at 保留）；可达但启用 Target 失败/加载错误→degraded。
 package probesvc
 
 import (
@@ -17,6 +18,7 @@ type ClientFactory func(n *domain.GatewayNode) (*traefikapi.Client, error)
 
 type Service struct {
 	nodes    *pgstore.NodeRepo
+	targets  *pgstore.TargetRepo
 	settings Settings
 	factory  ClientFactory
 	mu       sync.Mutex // 同节点探测不重叠
@@ -39,8 +41,8 @@ func (a SettingsAdapter) ProbeInterval() time.Duration {
 }
 func (a SettingsAdapter) FailureThreshold() int { return a.Snap().OfflineThreshold }
 
-func New(nodes *pgstore.NodeRepo, settings Settings, factory ClientFactory) *Service {
-	return &Service{nodes: nodes, settings: settings, factory: factory, running: map[string]bool{}}
+func New(nodes *pgstore.NodeRepo, targets *pgstore.TargetRepo, settings Settings, factory ClientFactory) *Service {
+	return &Service{nodes: nodes, targets: targets, settings: settings, factory: factory, running: map[string]bool{}}
 }
 
 // RunOnce 探测全部节点（并发上限由 scheduler 的 sem 保证外层；此处仅防单节点重入）。
@@ -92,7 +94,8 @@ func (s *Service) probe(ctx context.Context, nodeID string) {
 	}
 	c, err := s.factory(n)
 	if err != nil {
-		st.Status, st.ConsecutiveFailures = "unknown", st.ConsecutiveFailures+1
+		// 客户端构造失败亦计入连续失败（任何探测未达均算一次，FR-003）
+		s.markFailure(st, now)
 		_ = s.nodes.UpsertState(ctx, st)
 		return
 	}
@@ -100,31 +103,61 @@ func (s *Service) probe(ctx context.Context, nodeID string) {
 	defer cancel()
 	ov, err := c.Overview(pctx)
 	if err != nil {
-		st.ConsecutiveFailures++
-		// 连续 3 次失败→offline（T071/FR-003；阈值可经 settings 调整）
-		if st.ConsecutiveFailures >= s.threshold() {
-			st.Status = "offline"
-		} else if st.Status != "degraded" {
-			st.Status = "unknown"
-		}
+		s.markFailure(st, now)
 		_ = s.nodes.UpsertState(ctx, st)
 		return
 	}
+	// 可达：重置失败计数，记录在线时刻（last_online_at 在此后失败时保留，FR-003）
 	st.ConsecutiveFailures = 0
-	st.Status = "online"
-	st.TraefikVersion = ov.Version
 	st.LastOnlineAt = &now
-	// 加载集合摘要（drift 判定 actual 侧，US5 完整化）
+	st.TraefikVersion = ov.Version
+
+	// 加载实际态资源集合；任一拉取失败→加载错误（degraded 信号，宪章 XI actual 侧）
+	loadErr := false
 	if rs, err := c.HTTPRouters(pctx); err == nil {
 		st.LoadedRouters = map[string]any{"names": keys(rs), "count": len(rs)}
+	} else {
+		loadErr = true
 	}
 	if svcs, err := c.HTTPServices(pctx); err == nil {
 		st.LoadedServices = map[string]any{"names": boolKeys(svcs), "count": len(svcs)}
+	} else {
+		loadErr = true
 	}
 	if mws, err := c.HTTPMiddlewares(pctx); err == nil {
 		st.LoadedMiddlewares = map[string]any{"names": boolKeys(mws), "count": len(mws)}
+	} else {
+		loadErr = true
+	}
+
+	// 启用 Target 失败→degraded（healthsvc 探测写回的 HealthStatus，FR-003/spec Assumption）
+	targetDown := false
+	if ts, err := s.targets.ListEnabledByNode(ctx, nodeID); err == nil {
+		for _, t := range ts {
+			if t.HealthStatus == "down" {
+				targetDown = true
+				break
+			}
+		}
+	}
+
+	if loadErr || targetDown {
+		st.Status = "degraded"
+	} else {
+		st.Status = "online"
 	}
 	_ = s.nodes.UpsertState(ctx, st)
+}
+
+// markFailure 记录一次探测失败：连续达阈值→offline，否则 unknown。
+// last_online_at 不在此触碰，故跨失败保留最近一次在线时刻（FR-003）。
+func (s *Service) markFailure(st *domain.NodeState, _ time.Time) {
+	st.ConsecutiveFailures++
+	if st.ConsecutiveFailures >= s.threshold() {
+		st.Status = "offline"
+	} else {
+		st.Status = "unknown"
+	}
 }
 
 func (s *Service) threshold() int {

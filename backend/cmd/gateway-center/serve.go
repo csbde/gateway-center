@@ -141,7 +141,7 @@ func runServe(args []string) error {
 	}
 
 	// ---- scheduler：节点探测 + Target 健康 + 证书到期观测 ----
-	probe := probesvc.New(nodes, probesvc.SettingsAdapter{
+	probe := probesvc.New(nodes, targets, probesvc.SettingsAdapter{
 		Snap: func() *domain.PlatformSettings { return settingsSvc.Current(context.Background()) },
 	}, probesvc.ClientFactory(traefikFactory))
 	health := healthsvc.New(targets, svcs)

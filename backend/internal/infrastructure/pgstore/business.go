@@ -176,6 +176,16 @@ func (r *TargetRepo) ListEnabledWithService(ctx context.Context) ([]domain.Targe
 	return ts, err
 }
 
+// ListEnabledByNode 节点作用域的启用 Target（probesvc degraded 判定：是否有 down 的目标，T071/FR-003）。
+func (r *TargetRepo) ListEnabledByNode(ctx context.Context, nodeID string) ([]domain.Target, error) {
+	var ts []domain.Target
+	err := r.db.WithContext(ctx).
+		Joins("JOIN services s ON s.id = targets.service_id").
+		Where("targets.enabled = true AND s.enabled = true AND s.node_id = ? AND targets.deleted_at IS NULL AND s.deleted_at IS NULL", nodeID).
+		Find(&ts).Error
+	return ts, err
+}
+
 // ---- Route ----
 
 type RouteRepo struct{ db *gorm.DB }
