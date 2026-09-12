@@ -22,8 +22,7 @@ import {
   Td,
   Tr,
 } from "@/components/ui";
-import { ApiError } from "@/api/client";
-import { NodeScope, StatusBadge, fieldErrors, humanError, useNodeScope } from "../common";
+import { NodeScope, StatusBadge, fieldErrors, humanError, useDependencyBlock, useNodeScope } from "../common";
 
 export const MW_TYPE_LABEL: Record<MiddlewareType, string> = {
   security_headers: "安全响应头",
@@ -451,6 +450,7 @@ export function MiddlewaresPage() {
   const [editing, setEditing] = useState<Middleware | null | "new">(null);
   const [newType, setNewType] = useState<MiddlewareType>("security_headers");
   const [banner, setBanner] = useState("");
+  const dep = useDependencyBlock();
 
   const { data, isPending, error } = useQuery({
     queryKey: ["middlewares", nodeId],
@@ -474,10 +474,7 @@ export function MiddlewaresPage() {
       await qc.invalidateQueries({ queryKey: ["routes"] });
     },
     onError: (e) => {
-      if (e instanceof ApiError && e.code === "DEPENDENCY_BLOCKED") {
-        const refs = (e.details ?? []).map((d) => d.message).filter(Boolean);
-        setBanner(`该策略正被 ${refs.length} 条规则使用：${refs.join("、")}。请先在路由规则中解除绑定再删除。`);
-      } else setBanner(humanError(e).text);
+      if (!dep.openIfBlocked(e)) setBanner(humanError(e).text);
     },
   });
 
@@ -503,6 +500,7 @@ export function MiddlewaresPage() {
         </div>
       </div>
       {banner && <Alert>{banner}</Alert>}
+      {dep.dialog}
       {!nodeId ? (
         <Alert>请先在上方选择一台网关。</Alert>
       ) : isPending ? (

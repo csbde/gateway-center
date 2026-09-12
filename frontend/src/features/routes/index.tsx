@@ -399,6 +399,11 @@ export function RoutesPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["routes"] }),
     onError: (e) => setBanner(humanError(e).text),
   });
+  const archive = useMutation({
+    mutationFn: (r: Pick<Route, "id" | "row_version">) => routesApi.archive(r.id, r.row_version),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["routes"] }),
+    onError: (e) => setBanner(humanError(e).text),
+  });
 
   const openEdit = async (id: string) => {
     try {
@@ -454,12 +459,26 @@ export function RoutesPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={r.status === "archived"}
                         onClick={() =>
                           toggle.mutate({ r, enabled: !(r.status === "enabled") })
                         }
                       >
                         {r.status === "enabled" ? "停用" : "启用"}
                       </Button>
+                      {can.archiveRoute(tokenStore.user()) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={r.status === "archived"}
+                          onClick={() => {
+                            if (window.confirm(`归档规则「${r.name}」？归档后不再生成配置，且不可恢复启用（FR-039 处置终态）。`))
+                              archive.mutate(r);
+                          }}
+                        >
+                          归档
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="danger"

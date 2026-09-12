@@ -133,6 +133,7 @@ export const can = {
   writeBusiness: (u: User | null) => hasRole(u, "developer"),
   rollback: (u: User | null) => hasRole(u, "gateway_admin"),
   advancedRoute: (u: User | null) => hasRole(u, "gateway_admin"),
+  archiveRoute: (u: User | null) => hasRole(u, "gateway_admin"),
   nodeCreate: (u: User | null) => hasRole(u, "developer"),
   approve: (u: User | null) => hasRole(u, "gateway_admin"),
   manageUsers: (u: User | null) => hasRole(u, "super_admin"),

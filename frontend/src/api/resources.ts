@@ -76,6 +76,7 @@ export const routesApi = {
   update: (id: string, body: Record<string, unknown>) => api.put<RouteView>(`/routes/${id}`, body),
   enable: (id: string, ev: number) => api.post<RouteView>(`/routes/${id}/enable`, { expected_version: ev }),
   disable: (id: string, ev: number) => api.post<RouteView>(`/routes/${id}/disable`, { expected_version: ev }),
+  archive: (id: string, ev: number) => api.post<RouteView>(`/routes/${id}/archive`, { expected_version: ev }),
   remove: (id: string) => api.delete<undefined>(`/routes/${id}`),
   validateAdvanced: (rule: string) =>
     api.post<import("./types").AdvancedValidateResult>("/routes/validate-advanced", { rule }),

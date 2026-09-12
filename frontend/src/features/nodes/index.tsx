@@ -21,7 +21,7 @@ import {
   Td,
   Tr,
 } from "@/components/ui";
-import { ENV_LABEL, StatusBadge, fieldErrors, humanError } from "../common";
+import { ENV_LABEL, StatusBadge, fieldErrors, humanError, useDependencyBlock } from "../common";
 
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(64),
@@ -130,6 +130,7 @@ export function NodesPage() {
   });
   const [editing, setEditing] = useState<Node | null | "new">(null);
   const [banner, setBanner] = useState("");
+  const dep = useDependencyBlock();
 
   const toggle = useMutation({
     mutationFn: ({ node, enabled }: { node: Node; enabled: boolean }) =>
@@ -140,7 +141,9 @@ export function NodesPage() {
   const remove = useMutation({
     mutationFn: (id: string) => nodesApi.remove(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nodes"] }),
-    onError: (e) => setBanner(humanError(e).text),
+    onError: (e) => {
+      if (!dep.openIfBlocked(e)) setBanner(humanError(e).text);
+    },
   });
   const stateOf = useMutation({ mutationFn: (id: string) => nodesApi.state(id) });
   const [probe, setProbe] = useState<{ id: string; text: string } | null>(null);
@@ -158,6 +161,7 @@ export function NodesPage() {
         {writable && <Button onClick={() => setEditing("new")}>新建网关</Button>}
       </div>
       {banner && <Alert>{banner}</Alert>}
+      {dep.dialog}
 
       <DataTable head={["名称", "环境", "API 地址", "落盘根路径", "运行状态", "启用", "操作"]}>
         {(data.items ?? []).map((n) => (

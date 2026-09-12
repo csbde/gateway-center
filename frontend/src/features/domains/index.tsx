@@ -21,7 +21,7 @@ import {
   Td,
   Tr,
 } from "@/components/ui";
-import { NodeScope, StatusBadge, fieldErrors, humanError, useNodeScope } from "../common";
+import { NodeScope, StatusBadge, fieldErrors, humanError, useDependencyBlock, useNodeScope } from "../common";
 import { CertCard } from "./CertCard";
 
 const POLICY_LABEL: Record<Domain["https_policy"], string> = {
@@ -215,6 +215,7 @@ export function DomainsPage() {
   const [certFor, setCertFor] = useState<Domain | null>(null);
   const [certView, setCertView] = useState<Domain | null>(null);
   const [banner, setBanner] = useState("");
+  const dep = useDependencyBlock();
 
   const { data, isPending, error } = useQuery({
     queryKey: ["domains", nodeId],
@@ -230,7 +231,9 @@ export function DomainsPage() {
   const remove = useMutation({
     mutationFn: (id: string) => domainsApi.remove(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["domains"] }),
-    onError: (e) => setBanner(humanError(e).text),
+    onError: (e) => {
+      if (!dep.openIfBlocked(e)) setBanner(humanError(e).text);
+    },
   });
 
   return (
@@ -246,6 +249,7 @@ export function DomainsPage() {
         </div>
       </div>
       {banner && <Alert>{banner}</Alert>}
+      {dep.dialog}
       {!nodeId ? (
         <Alert>请先在上方选择一台网关。</Alert>
       ) : isPending ? (

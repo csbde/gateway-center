@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/api/client";
 import { nodesApi } from "@/api/resources";
 import type { Node } from "@/api/types";
-import { Badge, Select, type BadgeTone } from "@/components/ui";
+import { Alert, Badge, Button, Modal, Select, type BadgeTone } from "@/components/ui";
 
 export const ENV_LABEL: Record<Node["env_type"], string> = {
   development: "开发",
@@ -135,4 +135,85 @@ export function StatusBadge({ status }: { status: string }) {
     down: "不可用",
   };
   return <Badge tone={statusTone[status] ?? "neutral"}>{zh[status] ?? status}</Badge>;
+}
+
+/** 依赖引用摘要（409 DEPENDENCY_BLOCKED details 解析；FR-039/US7）。 */
+export interface DependencyRef {
+  id?: string;
+  name?: string;
+  hint?: string;
+  field?: string;
+}
+
+/** 解析 DEPENDENCY_BLOCKED 错误的引用/引导信息；非该错误返回 null。 */
+export function dependencyRefs(e: unknown): DependencyRef[] | null {
+  if (!(e instanceof ApiError) || e.code !== "DEPENDENCY_BLOCKED") return null;
+  return (e.details ?? []).map((d) => ({ id: d.id, name: d.message, hint: d.hint, field: d.field }));
+}
+
+/**
+ * 删除阻止对话框：引用方路由清单 + 「先解除依赖」引导（FR-039/US7-AC1，NFR-USE-01）。
+ * 三资源（域名/服务/中间件）被未归档路由引用时 409，details 逐条列出引用路由名；
+ * 节点删除受阻（仍启用/存在部署记录）时 details 携带 hint 引导而非路由清单——两种形态兼容。
+ */
+export function DependencyBlockDialog({
+  open,
+  onClose,
+  error,
+}: {
+  open: boolean;
+  onClose: () => void;
+  error: ApiError | null;
+}) {
+  const refs = error ? dependencyRefs(error) : null;
+  const routeRefs = (refs ?? []).filter((r) => r.name);
+  const hints = Array.from(new Set((refs ?? []).map((r) => r.hint).filter(Boolean))) as string[];
+  return (
+    <Modal open={open} onClose={onClose} title="无法删除：存在依赖">
+      <div className="space-y-3">
+        <Alert>{error?.message ?? "该资源被引用，暂不可删除。"}</Alert>
+        {routeRefs.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-sm font-medium">引用方路由规则（{routeRefs.length}）</p>
+            <ul className="space-y-1 rounded-md border border-border bg-muted/30 p-2">
+              {routeRefs.map((r) => (
+                <li key={r.id ?? r.name}>
+                  <Badge tone="neutral">{r.name}</Badge>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">如何解除依赖</p>
+          {hints.length > 0
+            ? hints.map((h, i) => (
+                <p key={i}>· {h}</p>
+              ))
+            : <p>· 前往「路由规则」页，解绑或归档引用该资源的路由后重试。</p>}
+          {routeRefs.length > 0 && <p>· 处置路径：停用 → 归档路由 → 再删除资源。</p>}
+        </div>
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onClose}>
+            知道了
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** 删除受阻钩子：onError 调 openIfBlocked(e)，命中 DEPENDENCY_BLOCKED 即弹对话框，返回 true。 */
+export function useDependencyBlock() {
+  const [error, setError] = useState<ApiError | null>(null);
+  const openIfBlocked = (e: unknown): boolean => {
+    if (e instanceof ApiError && e.code === "DEPENDENCY_BLOCKED") {
+      setError(e);
+      return true;
+    }
+    return false;
+  };
+  const close = () => setError(null);
+  const dialog = <DependencyBlockDialog open={!!error} onClose={close} error={error} />;
+  return { openIfBlocked, dialog };
 }

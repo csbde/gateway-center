@@ -19,7 +19,7 @@ import {
   Tr,
   Badge,
 } from "@/components/ui";
-import { NodeScope, StatusBadge, fieldErrors, humanError, useNodeScope } from "../common";
+import { NodeScope, StatusBadge, fieldErrors, humanError, useDependencyBlock, useNodeScope } from "../common";
 
 const svcSchema = z.object({
   name: z.string().min(1, "请输入服务名").max(64),
@@ -187,6 +187,7 @@ export function ServicesPage() {
   const [editing, setEditing] = useState<Service | null | "new">(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [banner, setBanner] = useState("");
+  const dep = useDependencyBlock();
 
   const { data, isPending, error } = useQuery({
     queryKey: ["services", nodeId],
@@ -202,7 +203,9 @@ export function ServicesPage() {
   const remove = useMutation({
     mutationFn: (id: string) => servicesApi.remove(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["services"] }),
-    onError: (e) => setBanner(humanError(e).text),
+    onError: (e) => {
+      if (!dep.openIfBlocked(e)) setBanner(humanError(e).text);
+    },
   });
 
   return (
@@ -218,6 +221,7 @@ export function ServicesPage() {
         </div>
       </div>
       {banner && <Alert>{banner}</Alert>}
+      {dep.dialog}
       {!nodeId ? (
         <Alert>请先在上方选择一台网关。</Alert>
       ) : isPending ? (

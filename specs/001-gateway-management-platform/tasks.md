@@ -196,7 +196,7 @@
 - [X] T083 [US7] backend/internal/domain/depcheck/：引用图查询（Domain/Service/Middleware→未归档引用路由清单）；三资源 DELETE 端点统一 409 DEPENDENCY_BLOCKED + details 引用方（FR-039/US7-AC1）
 - [X] T084 [US7] 处置流守卫：archive 终态迁移（Route 状态机接线 backend/internal/domain/state）、disabled/archived 资源生成排除（backend/internal/application/pipeline/version.go）、节点禁用冻结未完成部署（Edge Case）
 - [ ] T085 [P] [US7] 删除不变式测试化支撑：backend/tests/integration/softdelete_snapshot_test.go——软删后新版本排除该资源、历史 ConfigVersion 快照读取不受影响、版本/部署/审计 DELETE 一律 403 复查（US7-AC2/03；与 T087 不同文件并行）
-- [ ] T086 [P] [US7] 前端：删除阻止对话框 + 引用清单 + 「先解除依赖」引导 frontend/src/features/common/dependency-block.tsx（nodes/domains/services/middlewares 页接入）；Route 归档操作
+- [X] T086 [P] [US7] 前端：删除阻止对话框 + 引用清单 + 「先解除依赖」引导 frontend/src/features/common/dependency-block.tsx（nodes/domains/services/middlewares 页接入）；Route 归档操作
 - [ ] T087 [P] [US7] 集成测试 backend/tests/integration/dependency_test.go：V-7 全场景（引用链、三种处置、快照完整性）
 
 **Checkpoint**: 误删不致不可解释流量中断（宪法 VI）
