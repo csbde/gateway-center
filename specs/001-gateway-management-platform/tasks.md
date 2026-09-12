@@ -146,7 +146,7 @@
 - [X] T066 [US4] backend/internal/generate/tls.go：TLS 段生成——resolver 引用 + Host/SAN 规则 + 泛域名约束；tls/ 子目录产物（T020 扩展）
 - [X] T067 [US4] backend/internal/infrastructure/certwatch/：TLS 握手探测叶子证书 NotAfter（导入证书直接解析材料）→ certificates 表 upsert；纳入 scheduler；阈值判定 expiring_soon（不读 acme.json，宪法 VII/R14）
 - [X] T068 [US4] GET /domains/{id}/certificate + backend/internal/application/dashboardsvc：expiring_certificates 数据源 + validate 器「HTTPS 域名无可用证书→阻断项、临期→warning」（FR-008/Edge Case）
-- [ ] T069 [P] [US4] 前端：域名详情证书状态卡 frontend/src/features/domains/CertCard.tsx、Settings DNS 凭证管理页 frontend/src/routes/settings.tsx + frontend/src/features/credentials/、Dashboard/域名临期红色预警
+- [X] T069 [P] [US4] 前端：域名详情证书状态卡 frontend/src/features/domains/CertCard.tsx、Settings DNS 凭证管理页 frontend/src/routes/settings.tsx + frontend/src/features/credentials/、Dashboard/域名临期红色预警
 - [ ] T070 [P] [US4] 测试：契约 backend/tests/contract/credentials_test.go（端点永不回显值）+ 集成 backend/tests/integration/cert_test.go（V-4 全项：泛域名拒绝、轮换指纹、API/日志/Diff/审计 grep 零明文、acme.json mtime 不变）
 
 **Checkpoint**: HTTPS 治理闭环；平台侧零证书私钥明文

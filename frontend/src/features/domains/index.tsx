@@ -22,6 +22,7 @@ import {
   Tr,
 } from "@/components/ui";
 import { NodeScope, StatusBadge, fieldErrors, humanError, useNodeScope } from "../common";
+import { CertCard } from "./CertCard";
 
 const POLICY_LABEL: Record<Domain["https_policy"], string> = {
   off: "仅 HTTP",
@@ -212,6 +213,7 @@ export function DomainsPage() {
   const [nodeId, setNodeId] = useNodeScope();
   const [editing, setEditing] = useState<Domain | null | "new">(null);
   const [certFor, setCertFor] = useState<Domain | null>(null);
+  const [certView, setCertView] = useState<Domain | null>(null);
   const [banner, setBanner] = useState("");
 
   const { data, isPending, error } = useQuery({
@@ -265,6 +267,11 @@ export function DomainsPage() {
               </Td>
               <Td>
                 <div className="flex gap-1">
+                  {d.https_policy !== "off" && (
+                    <Button size="sm" variant="outline" onClick={() => setCertView(d)}>
+                      证书
+                    </Button>
+                  )}
                   {writable && (
                     <>
                       {d.https_policy === "imported" && (
@@ -314,6 +321,9 @@ export function DomainsPage() {
       </Modal>
       <Modal open={certFor !== null} onClose={() => setCertFor(null)} title={`上传证书：${certFor?.name ?? ""}`} wide>
         {certFor && <CertUploadForm domain={certFor} onClose={() => setCertFor(null)} />}
+      </Modal>
+      <Modal open={certView !== null} onClose={() => setCertView(null)} title={`证书状态：${certView?.name ?? ""}`} wide>
+        {certView && <CertCard domainId={certView.id} domainName={certView.name} />}
       </Modal>
     </div>
   );

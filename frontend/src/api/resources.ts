@@ -1,7 +1,10 @@
 // T043–T047 · US1 资源端点封装（与 contracts/openapi.yaml 路径一一对应）。
 import { api } from "./client";
 import type {
+  CertificateView,
   ConfigVersion,
+  CredentialVerifyResult,
+  DashboardSummary,
   Deployment,
   DiffResult,
   Domain,
@@ -13,6 +16,7 @@ import type {
   PlatformSettings,
   Route,
   RouteView,
+  SecretCredential,
   Service,
   Target,
   ValidateResult,
@@ -43,6 +47,7 @@ export const domainsApi = {
   enable: (id: string, ev: number) => api.post<Domain>(`/domains/${id}/enable`, { expected_version: ev }),
   disable: (id: string, ev: number) => api.post<Domain>(`/domains/${id}/disable`, { expected_version: ev }),
   remove: (id: string) => api.delete<undefined>(`/domains/${id}`),
+  certificate: (id: string) => api.get<CertificateView>(`/domains/${id}/certificate`),
 };
 
 // ---- services / targets ----
@@ -100,4 +105,19 @@ export const pipelineApi = {
 export const settingsApi = {
   get: () => api.get<PlatformSettings>("/settings"),
   update: (body: Record<string, unknown>) => api.put<PlatformSettings>("/settings", body),
+};
+
+// ---- credentials（US4/T064：CRUD + verify；值永不出 API，仅 fingerprint）----
+export const credentialsApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<SecretCredential>>("/credentials", q),
+  get: (id: string) => api.get<SecretCredential>(`/credentials/${id}`),
+  create: (body: Record<string, unknown>) => api.post<SecretCredential>("/credentials", body),
+  update: (id: string, body: Record<string, unknown>) => api.put<SecretCredential>(`/credentials/${id}`, body),
+  verify: (id: string) => api.post<CredentialVerifyResult>(`/credentials/${id}/verify`),
+  remove: (id: string) => api.delete<undefined>(`/credentials/${id}`),
+};
+
+// ---- dashboard 聚合（US4/T068 + US5/T073）----
+export const dashboardApi = {
+  get: () => api.get<DashboardSummary>("/dashboard"),
 };

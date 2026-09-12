@@ -13,6 +13,7 @@ import { RoutesPage } from "@/features/routes";
 import { MiddlewaresPage } from "@/features/middlewares";
 import { DeploymentsPage } from "@/features/deployments";
 import { VersionsPage } from "@/features/versions";
+import { SettingsPage } from "./routes/settings";
 import { tokenStore } from "./api/session";
 
 function requireAuth() {
@@ -83,7 +84,7 @@ const audits = createRoute({
 const settings = createRoute({
   getParentRoute: () => shellRoute,
   path: "/settings",
-  component: () => <Placeholder title="Settings" />,
+  component: SettingsPage,
 });
 
 export const routeTree = RootRoute.addChildren([

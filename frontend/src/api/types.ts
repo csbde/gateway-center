@@ -187,4 +187,55 @@ export interface User {
   status?: string;
 }
 
+// ---- US4：凭据 / 证书观测 / Dashboard 聚合 ----
+
+/** DNS/API 凭证（FR-035；值永不出 API，仅 8 位 fingerprint）。 */
+export interface SecretCredential {
+  id: string;
+  name: string;
+  kind: "dns_provider" | "traefik_api" | "other";
+  provider: string;
+  fingerprint: string;
+  row_version: number;
+  created_at?: string;
+}
+
+export interface CredentialVerifyResult {
+  ok: boolean;
+  reason?: string;
+}
+
+/** 证书只读观测（FR-033；source=none 表示域名尚无证书）。 */
+export interface CertificateView {
+  source: "acme" | "imported" | "none";
+  status: "valid" | "expiring_soon" | "expired" | "missing" | "unknown";
+  not_before?: string | null;
+  not_after?: string | null;
+  issuer?: string;
+  sans?: string[];
+  observed_at?: string | null;
+}
+
+export interface DashboardSummary {
+  nodes_online: number;
+  nodes_offline: number;
+  nodes_drift: number;
+  counts: { nodes: number; domains: number; services: number; routes: number; middlewares: number };
+  expiring_certificates: {
+    domain_id: string;
+    domain_name: string;
+    status: string;
+    not_after?: string | null;
+    issuer?: string;
+  }[];
+  recent_deployments: {
+    id: string;
+    node_id: string;
+    node_name: string;
+    status: string;
+    trigger: string;
+    created_at: string;
+  }[];
+}
+
 export type List<T> = { items: T[]; page: number; page_size: number; total: number };

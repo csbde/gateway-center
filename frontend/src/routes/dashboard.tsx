@@ -1,8 +1,8 @@
-// T048 · Dashboard 占位（US1）：资源计数卡；在线/漂移/证书预警由 US5/US4 补全。
+// T048 · Dashboard（US1 计数卡 + US4 证书到期预警；在线/漂移汇总由 US5/T074 补全）。
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Card } from "@/components/ui";
-import { domainsApi, routesApi, servicesApi } from "@/api/resources";
+import { Alert, Badge, Card } from "@/components/ui";
+import { dashboardApi, domainsApi, routesApi, servicesApi } from "@/api/resources";
 import { useNodes } from "@/features/common";
 
 function CountCard({ label, to, value, sub }: { label: string; to: "/nodes" | "/domains" | "/services" | "/routes"; value: number | "…"; sub?: string }) {
@@ -31,8 +31,11 @@ export function DashboardPage() {
   const domainsQ = useQuery(countQuery("domains", () => domainsApi.list({ page_size: 1 })));
   const servicesQ = useQuery(countQuery("services", () => servicesApi.list({ page_size: 1 })));
   const routesQ = useQuery(countQuery("routes", () => routesApi.list({ page_size: 1 })));
+  // US4：证书到期预警（GET /dashboard 的 expiring_certificates，FR-008）
+  const dashQ = useQuery({ queryKey: ["dashboard"], queryFn: () => dashboardApi.get() });
 
   const v = (x: { data?: { total: number }; isPending: boolean }) => (x.isPending ? "…" : x.data?.total ?? 0);
+  const expiring = dashQ.data?.expiring_certificates ?? [];
 
   return (
     <div className="space-y-4">
@@ -40,6 +43,24 @@ export function DashboardPage() {
         <h1 className="text-xl font-semibold">概览</h1>
         <p className="text-sm text-muted-foreground">平台当前纳管情况；运行状态与漂移检测在后续版本接入。</p>
       </div>
+      {expiring.length > 0 && (
+        <Alert className="border-danger/40">
+          <div className="font-medium text-danger">证书到期预警（{expiring.length}）</div>
+          <ul className="mt-2 space-y-1 text-sm">
+            {expiring.map((c) => (
+              <li key={c.domain_id} className="flex items-center gap-2">
+                <Badge tone={c.status === "expired" ? "danger" : "warning"}>
+                  {c.status === "expired" ? "已过期" : "即将到期"}
+                </Badge>
+                <Link to="/domains" className="font-medium underline">{c.domain_name}</Link>
+                <span className="text-muted-foreground">
+                  {c.not_after ? `到期于 ${new Date(c.not_after).toLocaleDateString()}` : "无到期信息"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CountCard label="网关节点" to="/nodes" value={nodesQ.isPending ? "…" : nodeCount} sub={`启用中 ${onlineCount} 台`} />
         <CountCard label="域名" to="/domains" value={v(domainsQ)} />
