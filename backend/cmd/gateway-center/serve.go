@@ -93,7 +93,8 @@ func runServe(args []string) error {
 	users := pgstore.NewUserRepo(store.DB)
 	toks := pgstore.NewTokenRepo(store.DB)
 	setRepo := pgstore.NewSettingsRepo(store.DB)
-	rec := auditrec.New(pgstore.NewAuditRepo(store.DB))
+	auditRepo := pgstore.NewAuditRepo(store.DB)
+	rec := auditrec.New(auditRepo)
 
 	// ---- 启动恢复（R16/NFR-REL-01：进程重启时中断中的部署 → failed）----
 	bootCtx, bootCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -142,6 +143,7 @@ func runServe(args []string) error {
 		Approvals:   approvalsvc.New(approvals, vers, rec),
 		Vers:        vers,
 		Deps:        deploys,
+		Audits:      auditRepo,
 	}
 
 	// ---- scheduler：节点探测 + Target 健康 + 证书到期观测 ----

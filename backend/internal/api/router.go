@@ -60,6 +60,8 @@ func NewRouter(h *handlers.Handler, auth func(http.Handler) http.Handler) http.H
 			r.Get("/deployments/{id}", h.GetDeployment)
 			r.Get("/release-requests", h.ListReleaseRequests)
 			r.Get("/settings", h.GetSettings)
+			r.Get("/audit-logs", h.ListAuditLogs)
+			r.Get("/audit-logs/{id}", h.GetAuditLog)
 
 			// 业务实体增删改 + 管线：developer+（Viewer 零写入口，US6-AC1；
 			// production 发布/高级模式等更细门禁在服务层与 Gate 中强制）

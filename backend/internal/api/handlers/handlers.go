@@ -46,6 +46,7 @@ type Handler struct {
 	Approvals   *approvalsvc.Service
 	Vers        *pgstore.VersionRepo
 	Deps        *pgstore.DeploymentRepo
+	Audits      *pgstore.AuditRepo
 	wg          sync.WaitGroup // 在途部署（graceful shutdown 等待）
 }
 
