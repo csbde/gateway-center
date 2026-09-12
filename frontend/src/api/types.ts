@@ -27,6 +27,13 @@ export interface NodeState {
   updated_at: string;
 }
 
+/** drift_detail 条目（driftsvc.compareDrift 产出；宪章 XI 期望/实际差异）。 */
+export interface DriftEntry {
+  type: "missing" | "unexpected";
+  resource: string; // router / service / middleware
+  name: string;
+}
+
 export interface Domain {
   id: string;
   node_id: string;
@@ -219,6 +226,7 @@ export interface CertificateView {
 export interface DashboardSummary {
   nodes_online: number;
   nodes_offline: number;
+  nodes_degraded: number;
   nodes_drift: number;
   counts: { nodes: number; domains: number; services: number; routes: number; middlewares: number };
   expiring_certificates: {
