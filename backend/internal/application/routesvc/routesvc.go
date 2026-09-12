@@ -117,7 +117,7 @@ func (s *Service) Create(ctx context.Context, in Input, actor Principal) (*View,
 		return nil, httperr.Internal(err)
 	}
 	if taken {
-		return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name"})
+		return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名路由后重试"})
 	}
 	maxp, err := s.routes.MaxPriority(ctx, in.NodeID)
 	if err != nil {
@@ -136,7 +136,7 @@ func (s *Service) Create(ctx context.Context, in Input, actor Principal) (*View,
 	rt.SetActor(actor.ID)
 	if err := s.routes.Create(ctx, rt); err != nil {
 		if isUnique(err) {
-			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name"})
+			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名路由后重试"})
 		}
 		return nil, httperr.Internal(err)
 	}
@@ -196,7 +196,7 @@ func (s *Service) Update(ctx context.Context, id string, in Input, actor Princip
 			return nil, httperr.ConcurrentEdit(rt.RowVersion)
 		}
 		if isUnique(err) {
-			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name"})
+			return nil, httperr.ValidationFailed("该节点下路由名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名路由后重试"})
 		}
 		return nil, httperr.Internal(err)
 	}
@@ -260,7 +260,7 @@ func (s *Service) validateInput(ctx context.Context, in Input) *httperr.APIError
 	// advanced 模式的角色/表达式校验在 Create/Update 前置的 checkAdvanced 完成；
 	// 此处仅确保表达式非空（写入前已被强校验，空值即数据不一致）。
 	if in.NodeID == "" {
-		return httperr.ValidationFailed("node_id 必填", httperr.Detail{Field: "node_id"})
+		return httperr.ValidationFailed("node_id 必填", httperr.Detail{Field: "node_id", Hint: "路由按节点作用域，先选择网关"})
 	}
 	if _, err := s.nodes.Get(ctx, in.NodeID); err != nil {
 		return mapNotFound(err, "节点")
@@ -342,7 +342,7 @@ func (s *Service) bindMiddlewares(ctx context.Context, routeID string, mwIDs []s
 	seen := map[string]bool{}
 	for _, mwID := range mwIDs {
 		if seen[mwID] {
-			return httperr.ValidationFailed("中间件重复绑定", httperr.Detail{Field: "middleware_ids"})
+			return httperr.ValidationFailed("中间件重复绑定", httperr.Detail{Field: "middleware_ids", Hint: "同一中间件在同一路由仅可绑定一次"})
 		}
 		seen[mwID] = true
 		mw, err := s.mws.Get(ctx, mwID)
@@ -350,7 +350,7 @@ func (s *Service) bindMiddlewares(ctx context.Context, routeID string, mwIDs []s
 			return mapNotFound(err, "中间件")
 		}
 		if mw.NodeID != nodeID {
-			return httperr.ValidationFailed("禁止跨节点引用中间件 "+mw.Name, httperr.Detail{Field: "middleware_ids"})
+			return httperr.ValidationFailed("禁止跨节点引用中间件 "+mw.Name, httperr.Detail{Field: "middleware_ids", Hint: "配置以节点为作用域，选用本节点下的中间件"})
 		}
 	}
 	if err := s.routes.ReplaceMiddlewares(ctx, routeID, mwIDs); err != nil {

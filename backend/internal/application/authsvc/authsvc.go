@@ -142,12 +142,12 @@ func HashPassword(pw string) (string, error) {
 // 用户名规则：3–32 [a-z0-9_.-]（data-model §1）
 func ValidateUsername(u string) *httperr.APIError {
 	if len(u) < 3 || len(u) > 32 {
-		return httperr.ValidationFailed("用户名长度需 3–32", httperr.Detail{Field: "username"})
+		return httperr.ValidationFailed("用户名长度需 3–32", httperr.Detail{Field: "username", Hint: "3–32 个字符"})
 	}
 	for _, r := range strings.ToLower(u) {
 		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-'
 		if !ok {
-			return httperr.ValidationFailed("用户名仅允许小写字母/数字/_/./-", httperr.Detail{Field: "username"})
+			return httperr.ValidationFailed("用户名仅允许小写字母/数字/_/./-", httperr.Detail{Field: "username", Hint: "小写字母开头，可含 a-z0-9_.-"})
 		}
 	}
 	return nil

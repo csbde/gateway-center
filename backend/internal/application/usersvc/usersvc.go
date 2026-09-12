@@ -57,14 +57,14 @@ func (s *Service) Create(ctx context.Context, in Input, actorID, actorUsername s
 	}
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
 	if in.DisplayName == "" || len(in.DisplayName) > 64 {
-		return nil, httperr.ValidationFailed("显示名必填且 ≤64 字符", httperr.Detail{Field: "display_name"})
+		return nil, httperr.ValidationFailed("显示名必填且 ≤64 字符", httperr.Detail{Field: "display_name", Hint: "用于界面展示，可含中文"})
 	}
 	if !domain.ValidRole(in.Role) {
 		return nil, httperr.ValidationFailed("角色非法", httperr.Detail{Field: "role", Hint: "super_admin/gateway_admin/developer/viewer"})
 	}
 	// 用户名唯一（GORM 软删自动过滤）
 	if existing, err := s.users.GetByUsername(ctx, in.Username); err == nil && existing != nil {
-		return nil, httperr.ValidationFailed("用户名已存在", httperr.Detail{Field: "username"})
+		return nil, httperr.ValidationFailed("用户名已存在", httperr.Detail{Field: "username", Hint: "更换用户名，或恢复已禁用同名账号"})
 	} else if err != nil && !errors.Is(err, pgstore.ErrNotFound) {
 		return nil, httperr.Internal(err)
 	}
@@ -111,7 +111,7 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput, actorID
 	roleChanged := false
 	if in.Role != "" && in.Role != string(u.Role) {
 		if !domain.ValidRole(in.Role) {
-			return nil, httperr.ValidationFailed("角色非法", httperr.Detail{Field: "role"})
+			return nil, httperr.ValidationFailed("角色非法", httperr.Detail{Field: "role", Hint: "super_admin/gateway_admin/developer/viewer"})
 		}
 		fields["role"] = in.Role
 		roleChanged = true
@@ -120,7 +120,7 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput, actorID
 	changed := false
 	if in.Status != "" && in.Status != u.Status {
 		if in.Status != "active" && in.Status != "disabled" {
-			return nil, httperr.ValidationFailed("状态非法", httperr.Detail{Field: "status"})
+			return nil, httperr.ValidationFailed("状态非法", httperr.Detail{Field: "status", Hint: "active/disabled"})
 		}
 		fields["status"] = in.Status
 		disabling = in.Status == "disabled"

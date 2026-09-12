@@ -81,7 +81,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*domain
 		return nil, apiErr
 	}
 	if in.NodeID == "" {
-		return nil, httperr.ValidationFailed("node_id 必填", httperr.Detail{Field: "node_id"})
+		return nil, httperr.ValidationFailed("node_id 必填", httperr.Detail{Field: "node_id", Hint: "资源按节点作用域，先选择网关"})
 	}
 	if _, err := s.nodes.Get(ctx, in.NodeID); err != nil {
 		return nil, mapNotFound(err, "节点")
@@ -91,7 +91,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*domain
 		return nil, httperr.Internal(err)
 	}
 	if taken {
-		return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name"})
+		return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名服务后重试"})
 	}
 	sv := &domain.Service{
 		NodeID: in.NodeID, Name: strings.TrimSpace(in.Name), Description: in.Description,
@@ -102,7 +102,7 @@ func (s *Service) Create(ctx context.Context, in Input, actorID string) (*domain
 	sv.SetActor(actorID)
 	if err := s.svcs.Create(ctx, sv); err != nil {
 		if isUnique(err) {
-			return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name"})
+			return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名服务后重试"})
 		}
 		return nil, httperr.Internal(err)
 	}
@@ -137,7 +137,7 @@ func (s *Service) Update(ctx context.Context, id string, in Input, actorID strin
 			return nil, httperr.ConcurrentEdit(sv.RowVersion)
 		}
 		if isUnique(err) {
-			return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name"})
+			return nil, httperr.ValidationFailed("该节点下服务名已存在", httperr.Detail{Field: "name", Hint: "更换名称，或删除/归档同名服务后重试"})
 		}
 		return nil, httperr.Internal(err)
 	}
@@ -268,7 +268,7 @@ func (s *Service) UpdateTarget(ctx context.Context, targetID string, in TargetIn
 			return nil, httperr.Internal(err)
 		}
 		if taken {
-			return nil, httperr.ValidationFailed("Target 地址已存在", httperr.Detail{Field: "url"})
+			return nil, httperr.ValidationFailed("Target 地址已存在", httperr.Detail{Field: "url", Hint: "同一服务内地址归一化后不可重复（UF-2）"})
 		}
 	}
 	before := *t

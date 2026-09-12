@@ -53,18 +53,18 @@ func (s *Service) Import(ctx context.Context, in ImportInput, actorID string) (*
 	_ = rest
 	x5c, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
-		return nil, httperr.ValidationFailed("证书内容非法: "+err.Error(), httperr.Detail{Field: "cert_pem"})
+		return nil, httperr.ValidationFailed("证书内容非法: "+err.Error(), httperr.Detail{Field: "cert_pem", Hint: "检查 PEM 编码与 X.509 格式"})
 	}
 	keyBlock, _ := pem.Decode([]byte(in.KeyPEM))
 	if keyBlock == nil {
-		return nil, httperr.ValidationFailed("私钥 PEM 无法解析", httperr.Detail{Field: "key_pem"})
+		return nil, httperr.ValidationFailed("私钥 PEM 无法解析", httperr.Detail{Field: "key_pem", Hint: "需 -----BEGIN PRIVATE KEY----- 等合法 PEM 头"})
 	}
 	key, err := parseAnyKey(keyBlock.Bytes)
 	if err != nil {
 		return nil, httperr.ValidationFailed("私钥不支持或损坏", httperr.Detail{Field: "key_pem", Hint: "支持 PKCS8 / PKCS1(RSA) / EC 私钥"})
 	}
 	if !publicKeysMatch(x5c.PublicKey, key) {
-		return nil, httperr.ValidationFailed("私钥与证书公钥不匹配", httperr.Detail{Field: "key_pem"})
+		return nil, httperr.ValidationFailed("私钥与证书公钥不匹配", httperr.Detail{Field: "key_pem", Hint: "确认私钥属于该证书对应的密钥对"})
 	}
 	if !coversDomain(x5c, strings.TrimPrefix(d.Name, "*.")) {
 		return nil, httperr.ValidationFailed("证书 CN/SAN 不覆盖域名 "+d.Name, httperr.Detail{Field: "cert_pem", Hint: "泛域名需 *. 或对应子域 SAN"})
