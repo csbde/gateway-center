@@ -3,13 +3,13 @@ GO      ?= go
 PKGS    := ./...
 COVER   := coverage.out
 
-.PHONY: build test test-unit test-contract test-integration test-pipeline vet lint cover run-migrate
+.PHONY: build test test-unit test-contract test-integration test-pipeline vet lint cover run-migrate secret-scan
 
 build:
 	$(GO) build -o bin/gateway-center ./cmd/gateway-center
 
-# 全量：unit + contract + integration（testcontainers 需要 Docker，research R17）
-test: test-unit test-contract test-integration
+# 全量：unit + contract + integration + 明文密钥扫描（testcontainers 需要 Docker，research R17；NFR-SEC-01）
+test: test-unit test-contract test-integration secret-scan
 
 test-unit:
 	$(GO) test ./internal/... ./cmd/...
@@ -37,3 +37,7 @@ cover:
 # 迁移 + 初始 Super Admin（无需 goose 二进制时：migrate-seed 自带幂等迁移，见 seed.go 注释）
 run-migrate:
 	$(GO) run ./cmd/gateway-center migrate-seed
+
+# 明文密钥扫描（NFR-SEC-01/宪法 VIII）：扫描运行时产物零命中 -----BEGIN/token=/authorization:
+secret-scan:
+	@cd .. && bash scripts/secret-scan.sh

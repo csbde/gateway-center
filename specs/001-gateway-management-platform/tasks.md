@@ -206,7 +206,7 @@
 ## Phase 10: Polish & Cross-Cutting Concerns
 
 - [X] T088 [P] 规模工具：backend/cmd/tools/seed/main.go（10 节点/200 域名/1000 路由/100 中间件）+ k6 backend/tests/perf/list-latency.js（SC-006 列表 p95≤3s；生成 <5s 断言）
-- [ ] T089 [P] 安全扫描脚本 scripts/secret-scan.sh：日志/响应样本/Diff 输出 grep `-----BEGIN|token=|authorization:` 零命中，接入 make test（NFR-SEC-01）
+- [X] T089 [P] 安全扫描脚本 scripts/secret-scan.sh：日志/响应样本/Diff 输出 grep `-----BEGIN|token=|authorization:` 零命中，接入 make test（NFR-SEC-01）
 - [ ] T090 错误文案审计：逐条 VALIDATION_FAILED/PIPELINE_BLOCKED 确认含资源定位 + hint 修复建议（NFR-USE-01），修 backend/internal/api/httperr/ 与前端错误映射
 - [ ] T091 [P] 覆盖率门槛：管线相关包 ≥80% 入 backend/Makefile test-all（unit+contract+integration+e2e 串行）（R17/宪法合规审查）
 - [ ] T092 宪法符合性人工检查：执行 quickstart.md §5 表全部项（无反向 YAML 解析 grep、写路径仅 dynamic/、TestNoPipelineBypass、快照自包含用例、审计 revoke）并记录结果
