@@ -132,7 +132,10 @@ func (c *Client) names(ctx context.Context, path string) (map[string]bool, error
 	}
 	m := map[string]bool{}
 	for _, it := range raw.Items {
-		m[it.Name] = true
+		// 与 HTTPRouters 一致：剥 @file 后缀、滤 @internal（宪章 XI 分域 + drift 比对名空间统一）
+		if base, ok := platformName(it.Name); ok {
+			m[base] = true
+		}
 	}
 	return m, nil
 }
