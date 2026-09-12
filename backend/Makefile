@@ -3,7 +3,7 @@ GO      ?= go
 PKGS    := ./...
 COVER   := coverage.out
 
-.PHONY: build test test-unit test-contract test-integration test-pipeline vet lint cover run-migrate secret-scan
+.PHONY: build test test-unit test-contract test-integration test-pipeline vet lint cover run-migrate secret-scan test-all test-e2e cover-pipeline
 
 build:
 	$(GO) build -o bin/gateway-center ./cmd/gateway-center
@@ -41,3 +41,14 @@ run-migrate:
 # 明文密钥扫描（NFR-SEC-01/宪法 VIII）：扫描运行时产物零命中 -----BEGIN/token=/authorization:
 secret-scan:
 	@cd .. && bash scripts/secret-scan.sh
+
+# 串行全量闸口（R17/宪法合规审查）：unit + contract + integration + 前端 e2e + 管线覆盖率门槛
+test-all: test-unit test-contract test-integration test-e2e cover-pipeline
+
+# 前端 E2E（Playwright；需后端 :8089 + vite :5173 在线，见 quickstart §4）
+test-e2e:
+	@cd ../frontend && npm run e2e
+
+# 管线相关包覆盖率门槛 ≥80%（R17/宪法 IV；脚本持管线包清单，GC_COVER_THRESHOLD 可覆盖）
+cover-pipeline:
+	@cd .. && bash scripts/cover-pipeline.sh
