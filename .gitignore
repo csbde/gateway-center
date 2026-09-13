@@ -5,7 +5,8 @@
 *.prof
 vendor/
 backend/bin/
-backend/seed        # cmd/tools/seed 编译产物（构建产物，不入库）
+# cmd/tools/seed 编译产物（构建产物，不入库）
+backend/seed
 backend/coverage.out
 
 # Node / frontend
