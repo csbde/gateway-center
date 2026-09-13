@@ -41,6 +41,26 @@ services:
     image: containous/whoami
     labels: {}
 
+  # 控制平面：单镜像（后端 serve 经 GC_SPA_DIR 在同一端口托管 UI+API）。
+  # 与 Traefik 共享同一 ./dynamic 宿主目录——平台写其 dynamic/ 子树（宪法 III/IV）。
+  # 容器内 deploy_root=/shared ⇒ 写入 /shared/dynamic ⇄ 宿主 ./dynamic ⇄ Traefik 读取。
+  gateway-center:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"          # 唯一暴露端口：UI + API
+    environment:
+      GC_DATABASE_URL: postgres://gc:gc@postgres:5432/gc?sslmode=disable
+      GC_MASTER_KEY: ${GC_MASTER_KEY:?请在环境变量中设置 GC_MASTER_KEY（openssl rand -hex 32）}
+      GC_ADDR: ":8080"
+      GC_SPA_DIR: /app/dist
+    volumes:
+      - ./:/shared           # 共享卷：平台写 /shared/dynamic，与 traefik 同卷
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
   acme:

@@ -105,11 +105,13 @@ cd ../frontend && npm ci && npm run dev               # http://localhost:5173
 
 ---
 
-## 部署（linux/amd64 发布包）
+## 部署
+
+### 方式一：linux/amd64 发布包
 
 > 适用于生产/目标机直接跑二进制，无需 Go/Node 工具链。CI 见 [`.github/workflows/build-linux-amd64.yml`](./.github/workflows/build-linux-amd64.yml)：`push` 到 `main` 上传 Artifact，打 `v*` tag 时发布 GitHub Release（`gateway-center-linux-amd64.tar.gz`）。
 
-### 发布包内容
+#### 发布包内容
 
 ```
 gateway-center-linux-amd64/
@@ -121,7 +123,7 @@ gateway-center-linux-amd64/
 └── README.md
 ```
 
-### 安装步骤
+#### 安装步骤
 
 ```bash
 # 1) 取发布包（Release 附件 或 Actions Artifact）并解压
@@ -144,7 +146,7 @@ docker compose -f deploy/compose/docker-compose.yml up -d postgres traefik sampl
 
 `install.sh` 仅做幂等初始化（生成 `.env` 主密钥、跑 `migrate-seed`），**不自动启动服务、不做破坏性操作**；主密钥写入本地 `.env`，请离线备份（丢失即全部凭证/私钥不可恢复，见运维手册）。
 
-### 以 systemd 常驻（示例）
+#### 以 systemd 常驻（示例）
 
 ```ini
 # /etc/systemd/system/gateway-center.service
@@ -166,6 +168,33 @@ WantedBy=multi-user.target
 ```bash
 sudo systemctl daemon-reload && sudo systemctl enable --now gateway-center
 ```
+
+### 方式二：Docker 镜像（单端口，推荐）
+
+> 单镜像已内置前端 SPA：后端 `serve` 经 `GC_SPA_DIR` 在**同一端口**托管 UI 与 API，只需暴露一个端口（默认 8080）即可访问。镜像构建见 [`.github/workflows/docker-image.yml`](./.github/workflows/docker-image.yml)，推送至 `registry.cn-hangzhou.aliyuncs.com/com_zoogooo/gateway-center`。
+
+**直接运行（需可连 PostgreSQL；deploy_root 经卷挂载）：**
+
+```bash
+docker run -d --name gateway-center -p 8080:8080 \
+  -e GC_DATABASE_URL='postgres://gc:gc@<db-host>:5432/gc?sslmode=disable' \
+  -e GC_MASTER_KEY="$(openssl rand -hex 32)" \
+  -v /srv/gc/dynamic:/shared   # 平台写 /shared/dynamic；须与 Traefik 同主机 bind 该目录
+  registry.cn-hangzhou.aliyuncs.com/com_zoogooo/gateway-center:latest
+```
+
+> 归档后在 UI 注册节点时，`deploy_root` 填容器内的 `/shared`（即共享卷挂载点），平台会写入 `/shared/dynamic/` ⇄ Traefik 读取目录（宪法 III/IV）。
+
+**随数据面一起编排（compose，全部同卷）：**
+
+```bash
+cd deploy/compose
+export GC_MASTER_KEY="$(openssl rand -hex 32)"
+docker compose up -d                      # postgres + traefik + 上游 + gateway-center 一并拉起
+# 浏览器 http://<host>:8080 ；注册节点：base_url=http://traefik:8080 deploy_root=/shared
+```
+
+`gateway-center` 服务由 `Dockerfile` 本地构建（`build: context: ../..`），与 Traefik 共享 `./dynamic` 宿主目录，无需额外配置。
 
 ---
 
