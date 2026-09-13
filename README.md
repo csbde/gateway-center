@@ -105,6 +105,70 @@ cd ../frontend && npm ci && npm run dev               # http://localhost:5173
 
 ---
 
+## 部署（linux/amd64 发布包）
+
+> 适用于生产/目标机直接跑二进制，无需 Go/Node 工具链。CI 见 [`.github/workflows/build-linux-amd64.yml`](./.github/workflows/build-linux-amd64.yml)：`push` 到 `main` 上传 Artifact，打 `v*` tag 时发布 GitHub Release（`gateway-center-linux-amd64.tar.gz`）。
+
+### 发布包内容
+
+```
+gateway-center-linux-amd64/
+├── gateway-center     # 后端单二进制（linux/amd64，CGO 禁用）
+├── dist/              # 前端 SPA 产物（由后端经 GC_SPA_DIR 托管）
+├── migrations/        # migrate-seed 用 SQL
+├── deploy/            # compose 数据面 + Traefik static 样本
+├── install.sh         # 安装/初始化脚本
+└── README.md
+```
+
+### 安装步骤
+
+```bash
+# 1) 取发布包（Release 附件 或 Actions Artifact）并解压
+tar -xzf gateway-center-linux-amd64.tar.gz
+cd gateway-center-linux-amd64
+
+# 2) 初始化（幂等：生成 .env 主密钥 + 建表 + 初始超管）
+./install.sh
+
+# 3) （可选）起数据面依赖
+docker compose -f deploy/compose/docker-compose.yml up -d postgres traefik sample-crm
+
+# 4) 启动控制平面（已内置托管前端 dist/）
+./gateway-center serve --addr :8080
+
+# 5) 浏览器打开 http://<host>:8080，用初始超管登录；在 UI 注册第一个 Traefik 节点：
+#      base_url   = http://localhost:8081   # Traefik 只读 API（compose 映射 8081→8080）
+#      deploy_root= <与 Traefik 同主机 bind 的 dynamic 目录绝对路径>
+```
+
+`install.sh` 仅做幂等初始化（生成 `.env` 主密钥、跑 `migrate-seed`），**不自动启动服务、不做破坏性操作**；主密钥写入本地 `.env`，请离线备份（丢失即全部凭证/私钥不可恢复，见运维手册）。
+
+### 以 systemd 常驻（示例）
+
+```ini
+# /etc/systemd/system/gateway-center.service
+[Unit]
+Description=Gateway Center
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/opt/gateway-center
+EnvironmentFile=/opt/gateway-center/.env
+ExecStart=/opt/gateway-center/gateway-center serve --addr ${GC_ADDR}
+Restart=on-failure
+User=gateway-center
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now gateway-center
+```
+
+---
+
 ## 环境变量
 
 | 变量 | 必填 | 默认 | 说明 |
