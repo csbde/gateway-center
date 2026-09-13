@@ -123,9 +123,12 @@ func TestMiddleware_BindingOrderHitsArtifacts(t *testing.T) {
 	require.Nil(t, apiErr)
 
 	// 绑定顺序：rate → strip → sec（AC-005 保序）
-	_, apiErr = rsvc.Create(ctx, routesvc.Input{NodeID: node.ID, Name: "ordered", Mode: "simple",
+	rRoute, apiErr := rsvc.Create(ctx, routesvc.Input{NodeID: node.ID, Name: "ordered", Mode: "simple",
 		DomainID: dom.ID, Path: "/", MatchType: "prefix", ServiceID: svc.ID,
 		MiddlewareIDs: []string{rate.ID, strip.ID, sec.ID}}, dev)
+	require.Nil(t, apiErr)
+	// 路由须 enabled 才进快照并生成产物（draft 路由不进快照）
+	_, apiErr = rsvc.SetStatus(ctx, rRoute.Route.ID, "enabled", rRoute.Route.RowVersion, dev.ID)
 	require.Nil(t, apiErr)
 
 	vsvc, _, _, _ := wirePipeline(t, env, rtDir)
@@ -133,14 +136,15 @@ func TestMiddleware_BindingOrderHitsArtifacts(t *testing.T) {
 	require.Nil(t, apiErr)
 	require.Equal(t, "ready", ver.Status)
 
-	// routers/*.yml 的 middlewares 数组顺序 == position 顺序
-	yml := readFile(t, rtDir, "routers/ordered.yml")
+	// routers/*.yml 的 middlewares 数组顺序 == position 顺序（产物存于版本 ArtifactFiles，CreateVersion 不落盘）
+	yml := ver.ArtifactFiles["routers/ordered.yml"]
+	require.NotEmpty(t, yml, "routers/ordered.yml 产物须存在")
 	iR, iS, iX := strings.Index(yml, "rate-h"), strings.Index(yml, "strip-h"), strings.Index(yml, "sec-h")
 	require.Positive(t, iR)
 	assert.Less(t, iR, iS, "rate 必须先于 strip")
 	assert.Less(t, iS, iX, "strip 必须先于 sec")
 	// 每个被绑定的策略都有独立产物文件
-	assert.Contains(t, readFile(t, rtDir, "middlewares/rate-h.yml"), "rateLimit")
+	assert.Contains(t, ver.ArtifactFiles["middlewares/rate-h.yml"], "rateLimit")
 }
 
 func TestMiddleware_DisabledOrInvalidBlocksGeneration(t *testing.T) {
@@ -158,9 +162,12 @@ func TestMiddleware_DisabledOrInvalidBlocksGeneration(t *testing.T) {
 	mw, apiErr := mwsvcS.Create(ctx, mwsvc.Input{NodeID: node.ID, Name: "lim", Type: "rate_limit",
 		Params: map[string]any{"average": 10, "burst": 20}}, dev.ID)
 	require.Nil(t, apiErr)
-	_, apiErr = rsvc.Create(ctx, routesvc.Input{NodeID: node.ID, Name: "needs-mw", Mode: "simple",
+	rRoute, apiErr := rsvc.Create(ctx, routesvc.Input{NodeID: node.ID, Name: "needs-mw", Mode: "simple",
 		DomainID: dom.ID, Path: "/", MatchType: "prefix", ServiceID: svc.ID,
 		MiddlewareIDs: []string{mw.ID}}, dev)
+	require.Nil(t, apiErr)
+	// 路由须 enabled 才进快照并被 validate 检查中间件引用（draft 路由不进快照）
+	_, apiErr = rsvc.SetStatus(ctx, rRoute.Route.ID, "enabled", rRoute.Route.RowVersion, dev.ID)
 	require.Nil(t, apiErr)
 	vsvc, _, _, _ := wirePipeline(t, env, rtDir)
 

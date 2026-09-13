@@ -165,7 +165,7 @@ func TestDependency_HistoricalSnapshotIntact(t *testing.T) {
 	rRoute, apiErr := rsvc.Create(ctx, routesvc.Input{NodeID: node.ID, Name: "snap-route", Mode: "simple",
 		DomainID: dom.ID, Path: "/", MatchType: "prefix", ServiceID: svc.ID}, dev)
 	require.Nil(t, apiErr)
-	_, apiErr = rsvc.SetStatus(ctx, rRoute.Route.ID, "enabled", rRoute.Route.RowVersion, dev.ID)
+	enabledRoute, apiErr := rsvc.SetStatus(ctx, rRoute.Route.ID, "enabled", rRoute.Route.RowVersion, dev.ID)
 	require.Nil(t, apiErr)
 
 	vsvc, _, vers, _ := wirePipeline(t, env, rtDir)
@@ -177,7 +177,7 @@ func TestDependency_HistoricalSnapshotIntact(t *testing.T) {
 	assert.Contains(t, j1, "snap-route")
 
 	// 处置：归档路由 → 软删域名与服务
-	_, apiErr = rsvc.SetStatus(ctx, rRoute.Route.ID, "archived", rRoute.Route.RowVersion, dev.ID)
+	_, apiErr = rsvc.SetStatus(ctx, rRoute.Route.ID, "archived", enabledRoute.Route.RowVersion, dev.ID)
 	require.Nil(t, apiErr)
 	require.Nil(t, domS.Delete(ctx, dom.ID, admin.ID))
 	require.Nil(t, svcS.Delete(ctx, svc.ID, admin.ID))

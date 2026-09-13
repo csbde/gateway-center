@@ -159,16 +159,16 @@ func TestDrift_InjectVisibleAndClearAfterDeploy(t *testing.T) {
 	assert.True(t, rogueDetail, "drift_detail 须含 unexpected rogue")
 	assert.GreaterOrEqual(t, st.DesiredVersion, st.ActualVersion, "desired ≥ actual")
 
-	// 6. 漂移期间部署旧版本 → 422（仅允许最新 ready 覆盖漂移）
+	// 6. 重新 validate + 生成新版本（漂移期间要求先重新 validate）
+	ver2, _, apiErr := vsvc.CreateVersion(ctx, node.ID, admin.ID)
+	require.Nil(t, apiErr)
+	assert.Greater(t, ver2.Version, ver.Version)
+
+	// 7. 漂移期间部署旧版本（非最新 ready）→ 422（仅允许最新 ready 覆盖漂移）
 	_, apiErr = dsvc.Deploy(ctx, pipeline.DeployInput{NodeID: node.ID, VersionID: ver.ID, Confirmed: true}, admin.ID, syncRunner())
 	require.NotNil(t, apiErr)
 	assert.Equal(t, 422, apiErr.Status)
 	assert.Contains(t, apiErr.Message, "漂移")
-
-	// 7. 重新 validate + 生成新版本（漂移期间要求先重新 validate）
-	ver2, _, apiErr := vsvc.CreateVersion(ctx, node.ID, admin.ID)
-	require.Nil(t, apiErr)
-	assert.Greater(t, ver2.Version, ver.Version)
 
 	// 8. 部署最新 ready → deployer removeStale 删 rogue → 校验通过 → success → drift 清除
 	res2, apiErr := dsvc.Deploy(ctx, pipeline.DeployInput{NodeID: node.ID, VersionID: ver2.ID, Confirmed: true}, admin.ID, syncRunner())
