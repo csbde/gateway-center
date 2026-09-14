@@ -1,28 +1,54 @@
 # T006 · 参考部署拓扑（验证/开发用，非生产）
 # 前置（宪法 III / POSIX rename）：./dynamic 必须与 Traefik 容器同主机 bind mount——
 # 原子 rename 仅在 POSIX 同文件系统内成立，跨主机 NFS/virtiofs 不保证。
+#
+# 用法：
+#   cd deploy/compose
+#   cp .env.example .env        # 至少设置 GC_MASTER_KEY、GC_INITIAL_ADMIN_PASSWORD
+#   docker compose up -d        # postgres → migrate-seed（建表+种子超管）→ traefik + gateway-center
 name: gateway-center
 
 services:
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: gc
-      POSTGRES_PASSWORD: gc
-      POSTGRES_DB: gc
+      POSTGRES_USER: ${POSTGRES_USER:-gc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gc}
+      POSTGRES_DB: ${POSTGRES_DB:-gc}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gc -d gc"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gc} -d ${POSTGRES_DB:-gc}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
+  # 一次性初始化：建表（幂等）+ 初始 Super Admin。serve 不自动迁移，故须先跑此步。
+  # 复用 gateway-center 镜像——command 覆盖 CMD，ENTRYPOINT 拼接为 /app/gateway-center migrate-seed。
+  # 每次 up 都会重跑（幂等：已建表/已建管理员即跳过，约 2-3s）。
+  migrate-seed:
+    image: gateway-center:${TAG:-dev}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["migrate-seed"]
+    env_file: .env
+    environment:
+      # 由 postgres 服务凭证自动拼接；勿在 .env 设 GC_DATABASE_URL（此处已覆盖）。
+      GC_DATABASE_URL: postgres://${POSTGRES_USER:-gc}:${POSTGRES_PASSWORD:-gc}@postgres:5432/${POSTGRES_DB:-gc}?sslmode=disable
+      GC_MIGRATIONS_DIR: /app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   # 数据面：运维预配样本。平台只读其 API，且只写 /etc/traefik/dynamic/ 子树（宪章 III）。
   traefik:
     image: traefik:v3.3
+    restart: unless-stopped
     command:
       - --configFile=/etc/traefik/traefik.yml
     ports:
@@ -45,21 +71,32 @@ services:
   # 与 Traefik 共享同一 ./dynamic 宿主目录——平台写其 dynamic/ 子树（宪法 III/IV）。
   # 容器内 deploy_root=/shared ⇒ 写入 /shared/dynamic ⇄ 宿主 ./dynamic ⇄ Traefik 读取。
   gateway-center:
+    image: gateway-center:${TAG:-dev}
     build:
       context: ../..
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "8080:8080"          # 唯一暴露端口：UI + API
+      - "${GC_PORT:-8080}:8080"          # 唯一暴露端口：UI + API
+    env_file: .env
     environment:
-      GC_DATABASE_URL: postgres://gc:gc@postgres:5432/gc?sslmode=disable
-      GC_MASTER_KEY: ${GC_MASTER_KEY:?请在环境变量中设置 GC_MASTER_KEY（openssl rand -hex 32）}
+      GC_DATABASE_URL: postgres://${POSTGRES_USER:-gc}:${POSTGRES_PASSWORD:-gc}@postgres:5432/${POSTGRES_DB:-gc}?sslmode=disable
       GC_ADDR: ":8080"
       GC_SPA_DIR: /app/dist
+      GC_MIGRATIONS_DIR: /app/migrations
     volumes:
       - ./:/shared           # 共享卷：平台写 /shared/dynamic，与 traefik 同卷
     depends_on:
       postgres:
         condition: service_healthy
+      migrate-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
 volumes:
   pgdata:

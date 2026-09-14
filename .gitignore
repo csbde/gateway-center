@@ -20,6 +20,7 @@ frontend/test-results/
 # Env & secrets (宪法 VIII：主密钥/凭证绝不入库)
 .env
 .env.*
+!.env.example
 *.key
 *.crt
 secrets/

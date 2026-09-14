@@ -175,10 +175,22 @@ sudo systemctl daemon-reload && sudo systemctl enable --now gateway-center
 
 **直接运行（需可连 PostgreSQL；deploy_root 经卷挂载）：**
 
+首次须先建表 + 种子超管（幂等），再启动服务；两次须用**同一**主密钥（否则已加密凭证无法解密）：
+
 ```bash
+export GC_MASTER_KEY="$(openssl rand -hex 32)"   # 固定复用，勿每次重新生成
+
+# 1) 建表 + 初始 Super Admin（幂等；GC_INITIAL_ADMIN_PASSWORD ≥12 字符）
+docker run --rm \
+  -e GC_DATABASE_URL='postgres://gc:gc@<db-host>:5432/gc?sslmode=disable' \
+  -e GC_MASTER_KEY="$GC_MASTER_KEY" \
+  -e GC_INITIAL_ADMIN_PASSWORD='ChangeMe-Strong-1' \
+  registry.cn-hangzhou.aliyuncs.com/com_zoogooo/gateway-center:latest migrate-seed
+
+# 2) 启动控制平面（UI + API 同端口）
 docker run -d --name gateway-center -p 8080:8080 \
   -e GC_DATABASE_URL='postgres://gc:gc@<db-host>:5432/gc?sslmode=disable' \
-  -e GC_MASTER_KEY="$(openssl rand -hex 32)" \
+  -e GC_MASTER_KEY="$GC_MASTER_KEY" \
   -v /srv/gc/dynamic:/shared   # 平台写 /shared/dynamic；须与 Traefik 同主机 bind 该目录
   registry.cn-hangzhou.aliyuncs.com/com_zoogooo/gateway-center:latest
 ```
@@ -189,12 +201,13 @@ docker run -d --name gateway-center -p 8080:8080 \
 
 ```bash
 cd deploy/compose
-export GC_MASTER_KEY="$(openssl rand -hex 32)"
-docker compose up -d                      # postgres + traefik + 上游 + gateway-center 一并拉起
-# 浏览器 http://<host>:8080 ；注册节点：base_url=http://traefik:8080 deploy_root=/shared
+cp .env.example .env
+# 编辑 .env：设置 GC_MASTER_KEY（openssl rand -hex 32）与 GC_INITIAL_ADMIN_PASSWORD（≥12 字符）
+docker compose up -d        # postgres → migrate-seed（建表+种子超管）→ traefik + gateway-center
+# 浏览器 http://<host>:8080 ；用 .env 中的初始超管登录；注册节点：base_url=http://traefik:8080 deploy_root=/shared
 ```
 
-`gateway-center` 服务由 `Dockerfile` 本地构建（`build: context: ../..`），与 Traefik 共享 `./dynamic` 宿主目录，无需额外配置。
+`gateway-center` 与一次性 `migrate-seed` 服务均由 `Dockerfile` 本地构建（`build: context: ../..`），共享 `gateway-center:dev` 镜像；`migrate-seed` 幂等（已建表/已建管理员即跳过），`gateway-center` 依赖其成功完成后才启动。与 Traefik 共享 `./dynamic` 宿主目录，无需额外配置。
 
 ---
 
