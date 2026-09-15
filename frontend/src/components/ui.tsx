@@ -2,7 +2,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2, X } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import { forwardRef, type ComponentProps, type ReactNode } from "react";
 
 const cx = (...cls: (string | false | null | undefined)[]) => cls.filter(Boolean).join(" ");
 
@@ -38,9 +38,15 @@ export function Button({
   );
 }
 
-export function Input({ className, ...rest }: ComponentProps<"input">) {
+// React 18 下函数组件不接收 ref：必须 forwardRef，否则 {...register("x")} 的 ref 被丢弃，
+// react-hook-form 读到的字段值恒为 undefined（zod 只报 Required），表单永远提交不了。
+export const Input = forwardRef<HTMLInputElement, ComponentProps<"input">>(function Input(
+  { className, ...rest },
+  ref,
+) {
   return (
     <input
+      ref={ref}
       className={cx(
         "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
         "aria-[invalid=true]:border-destructive",
@@ -49,15 +55,22 @@ export function Input({ className, ...rest }: ComponentProps<"input">) {
       {...rest}
     />
   );
-}
+});
 
-export function Select({ className, children, ...rest }: ComponentProps<"select">) {
+export const Select = forwardRef<HTMLSelectElement, ComponentProps<"select">>(function Select(
+  { className, children, ...rest },
+  ref,
+) {
   return (
-    <select className={cx("w-full rounded-md border border-input bg-background px-3 py-2 text-sm", className)} {...rest}>
+    <select
+      ref={ref}
+      className={cx("w-full rounded-md border border-input bg-background px-3 py-2 text-sm", className)}
+      {...rest}
+    >
       {children}
     </select>
   );
-}
+});
 
 export function Field({
   label,

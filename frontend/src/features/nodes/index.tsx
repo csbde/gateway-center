@@ -26,7 +26,7 @@ import { ENV_LABEL, StatusBadge, fieldErrors, humanError, useDependencyBlock } f
 const schema = z.object({
   name: z.string().min(1, "请输入名称").max(64),
   base_url: z.string().regex(/^https?:\/\/.+/, "需为 http(s)://host:port"),
-  deploy_root: z.string().regex(/^\//, "必须为绝对路径，如 /etc/traefik"),
+  deploy_root: z.string().regex(/^\//, "必须为绝对路径，如 /shared 或 /etc/traefik"),
   env_type: z.enum(["development", "test", "staging", "production"]),
   remark: z.string().max(200).optional(),
   api_auth: z.string().optional(),
@@ -43,7 +43,7 @@ function NodeForm({ node, onClose }: { node: Node | null; onClose: () => void })
     resolver: zodResolver(schema),
     defaultValues: node
       ? { name: node.name, base_url: node.base_url, deploy_root: node.deploy_root, env_type: node.env_type, remark: node.remark }
-      : { name: "", base_url: "http://localhost:8081", deploy_root: "/etc/traefik", env_type: "test", remark: "" },
+      : { name: "", base_url: "http://traefik:8080", deploy_root: "/shared", env_type: "test", remark: "" },
   });
   const [serverErr, setServerErr] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string>("");
@@ -74,7 +74,7 @@ function NodeForm({ node, onClose }: { node: Node | null; onClose: () => void })
       <Field
         label="Traefik API 地址"
         htmlFor="base_url"
-        hint="用于读取运行状态与发布校验（只读 API），如 http://localhost:8081"
+        hint="只读 API，用于读取运行状态与发布校验。平台跑在容器里（compose）填 http://traefik:8080（服务名，勿用 localhost——那指平台容器自己）；以宿主进程直接运行时才填 http://localhost:8081"
         error={errors.base_url?.message ?? serverErr.base_url}
       >
         <Input id="base_url" {...register("base_url")} aria-invalid={!!(errors.base_url ?? serverErr.base_url)} />
@@ -82,7 +82,7 @@ function NodeForm({ node, onClose }: { node: Node | null; onClose: () => void })
       <Field
         label="配置落盘根路径"
         htmlFor="deploy_root"
-        hint="平台仅写该目录下 dynamic/ 子树（静态配置只读）"
+        hint="平台仅写该目录下 dynamic/ 子树（静态配置只读）。compose 拓扑填 /shared（⇄ 宿主 ./dynamic ⇄ Traefik 的 /etc/traefik/dynamic）"
         error={errors.deploy_root?.message ?? serverErr.deploy_root}
       >
         <Input id="deploy_root" {...register("deploy_root")} aria-invalid={!!(errors.deploy_root ?? serverErr.deploy_root)} />

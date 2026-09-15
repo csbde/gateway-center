@@ -49,27 +49,56 @@ type ResourceRef struct {
 	} `json:"router,omitempty"`
 }
 
-func (c *Client) get(ctx context.Context, path string, out any) error {
+func (c *Client) fetch(ctx context.Context, path string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if c.user != "" {
 		req.SetBasicAuth(c.user, c.pass)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrUnreachable, err)
+		return nil, fmt.Errorf("%w: %v", ErrUnreachable, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: HTTP %d", ErrUnreachable, resp.StatusCode)
+		return nil, fmt.Errorf("%w: HTTP %d", ErrUnreachable, resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func (c *Client) get(ctx context.Context, path string, out any) error {
+	body, err := c.fetch(ctx, path)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(body, out)
+}
+
+// getList 取集合端点。Traefik 的 /api/http/{routers,services,middlewares} 返回**裸 JSON 数组**，
+// 故先按数组解析；失败再兼容 {"items":[...]} 包装（测试替身/前置代理）。
+// 若只认包装形态，真实 Traefik 下 json.Unmarshal 必失败 → 实际态恒为空：
+// 节点永远判 degraded、发布后的运行时校验永远 failed。
+func (c *Client) getList(ctx context.Context, path string, out any) error {
+	body, err := c.fetch(ctx, path)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(body, out); err == nil {
+		return nil
+	}
+	var wrapped struct {
+		Items json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(body, &wrapped); err != nil || len(wrapped.Items) == 0 {
+		return fmt.Errorf("解析 %s 响应失败：既不是 JSON 数组也不是 {\"items\":[...]}", path)
+	}
+	return json.Unmarshal(wrapped.Items, out)
 }
 
 func (c *Client) Overview(ctx context.Context) (*Overview, error) {
@@ -82,14 +111,12 @@ func (c *Client) Overview(ctx context.Context) (*Overview, error) {
 
 // HTTPRouters 返回实际加载的 http router 名称→规则摘要。
 func (c *Client) HTTPRouters(ctx context.Context) (map[string]map[string]any, error) {
-	var raw struct {
-		Items []map[string]any `json:"items"`
-	}
-	if err := c.get(ctx, "/api/http/routers", &raw); err != nil {
+	var items []map[string]any
+	if err := c.getList(ctx, "/api/http/routers", &items); err != nil {
 		return nil, err
 	}
 	m := map[string]map[string]any{}
-	for _, it := range raw.Items {
+	for _, it := range items {
 		name, _ := it["name"].(string)
 		if base, ok := platformName(name); ok {
 			m[base] = it
@@ -122,16 +149,14 @@ func (c *Client) HTTPMiddlewares(ctx context.Context) (map[string]bool, error) {
 }
 
 func (c *Client) names(ctx context.Context, path string) (map[string]bool, error) {
-	var raw struct {
-		Items []struct {
-			Name string `json:"name"`
-		} `json:"items"`
+	var items []struct {
+		Name string `json:"name"`
 	}
-	if err := c.get(ctx, path, &raw); err != nil {
+	if err := c.getList(ctx, path, &items); err != nil {
 		return nil, err
 	}
 	m := map[string]bool{}
-	for _, it := range raw.Items {
+	for _, it := range items {
 		// 与 HTTPRouters 一致：剥 @file 后缀、滤 @internal（宪章 XI 分域 + drift 比对名空间统一）
 		if base, ok := platformName(it.Name); ok {
 			m[base] = true

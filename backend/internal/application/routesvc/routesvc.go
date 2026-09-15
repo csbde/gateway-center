@@ -225,6 +225,10 @@ func (s *Service) SetStatus(ctx context.Context, id, to string, expected int64, 
 	if err := state.Route.Can(rt.Status, to); err != nil {
 		return nil, httperr.ValidationFailed(err.Error(), httperr.Detail{Field: "status", Hint: "草稿→启用→禁用→归档（终态）"})
 	}
+	// 同 servicesvc 的 enable/disable：未带 expected_version 即以当前版本为准（否则裸 error → 500）
+	if expected == 0 {
+		expected = rt.RowVersion
+	}
 	if err := s.routes.Update(ctx, rt, expected, map[string]any{"status": to, "updated_by": actorID}); err != nil {
 		if errors.Is(err, pgstore.ErrConflict) {
 			return nil, httperr.ConcurrentEdit(rt.RowVersion)

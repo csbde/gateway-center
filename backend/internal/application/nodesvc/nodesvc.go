@@ -133,6 +133,11 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool, expec
 	if err != nil {
 		return nil, mapNotFound(err, "节点")
 	}
+	// 与 servicesvc/mwsvc 的 enable/disable 同语义：调用方未带 expected_version 时以当前版本为准；
+	// 否则 UpdateOptimistic 返回裸 error 被映射成 500，把「少传字段」误报成服务端故障。
+	if expected == 0 {
+		expected = n.RowVersion
+	}
 	if err := s.nodes.Update(ctx, n, expected, map[string]any{"enabled": enabled, "updated_by": actor.ID}); err != nil {
 		if errors.Is(err, pgstore.ErrConflict) {
 			return nil, concurrentErr(err)
@@ -193,10 +198,10 @@ func validateInput(in Input) *httperr.APIError {
 	}
 	u, err := url.Parse(in.BaseURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return httperr.ValidationFailed("API 地址必须为 http(s)://host:port", httperr.Detail{Field: "base_url", Hint: "如 http://localhost:8081（Traefik dashboard/API）"})
+		return httperr.ValidationFailed("API 地址必须为 http(s)://host:port", httperr.Detail{Field: "base_url", Hint: "平台在容器内（compose）填 http://traefik:8080；宿主进程直连才用 http://localhost:8081"})
 	}
 	if !strings.HasPrefix(in.DeployRoot, "/") {
-		return httperr.ValidationFailed("落盘根路径必须为绝对路径", httperr.Detail{Field: "deploy_root", Hint: "如 /etc/traefik（平台写其 dynamic/ 子树）"})
+		return httperr.ValidationFailed("落盘根路径必须为绝对路径", httperr.Detail{Field: "deploy_root", Hint: "compose 拓扑填 /shared；宿主直连填 /etc/traefik（平台只写其 dynamic/ 子树）"})
 	}
 	if !domain.ValidEnvType(in.EnvType) {
 		return httperr.ValidationFailed("环境类型非法", httperr.Detail{Field: "env_type", Hint: "development/test/staging/production"})

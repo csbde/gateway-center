@@ -215,7 +215,13 @@ func (s *DeployService) run(ctx context.Context, node *domain.GatewayNode, v *do
 	d.Status = "success"
 	// 成功即清除漂移并更新 actual/desired（宪章 XI；列级更新避免覆写 probesvc 探测字段）
 	_ = s.nodes.UpdateDriftState(ctx, node.ID, false, nil, v.Version, v.Version)
-	s.audit.Record(ctx, nil, auditrec.Event{Action: "deploy_success", ResourceType: "deployment",
+	// 审计必须带 actor：audit_logs.actor_id 是 uuid 列，空串会被 PG 拒（22P02）→ 整条 deploy_success 丢失。
+	// run 由 Deploy/Rollback 异步调用，两边都会 SetActor，故从部署记录取触发者。
+	var actorID string
+	if d.CreatedBy != nil {
+		actorID = *d.CreatedBy
+	}
+	s.audit.Record(ctx, nil, auditrec.Event{ActorID: actorID, Action: "deploy_success", ResourceType: "deployment",
 		ResourceID: d.ID, ResourceName: fmt.Sprintf("%s v%d", node.Name, v.Version)})
 	return &DeployResult{DeploymentID: d.ID, Status: "success", Verification: verif}, nil
 }
