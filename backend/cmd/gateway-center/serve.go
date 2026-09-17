@@ -31,6 +31,7 @@ import (
 	"gateway-center/backend/internal/application/nodesvc"
 	"gateway-center/backend/internal/application/pipeline"
 	"gateway-center/backend/internal/application/probesvc"
+	"gateway-center/backend/internal/application/proxyhostsvc"
 	"gateway-center/backend/internal/application/routesvc"
 	"gateway-center/backend/internal/application/scheduler"
 	"gateway-center/backend/internal/application/servicesvc"
@@ -128,15 +129,19 @@ func runServe(args []string) error {
 	deploySvc := pipeline.NewDeployService(vers, deploys, nodes, certs, cipher,
 		deployer.NewFileDeployer(), traefikFactory, rec, approvalsvc.NewProductionGate(approvals))
 
+	certSvc := certsvc.New(certs, doms, cipher, rec)
+	proxyHostSvc := proxyhostsvc.New(store.DB, doms, svcs, targets, routes, mws, certs, certSvc, rec)
+
 	h := &handlers.Handler{
 		Auth:        authSvc,
 		Nodes:       nodeSvc,
 		Domains:     domainsvc.New(doms, nodes, rec),
-		Certs:       certsvc.New(certs, doms, cipher, rec),
+		Certs:       certSvc,
 		Credentials: credsvc.New(creds, cipher, rec),
 		Dash:        dashboardsvc.New(nodes, doms, svcs, routes, mws, certs, deploys, setRepo),
 		Services:    servicesvc.New(svcs, targets, nodes, rec),
 		Routes:      routesvc.New(routes, doms, svcs, mws, nodes, rec),
+		ProxyHosts:  proxyHostSvc,
 		Middlewares: mwsvc.New(mws, nodes, rec),
 		Versions:    versionSvc,
 		Deploys:     deploySvc,

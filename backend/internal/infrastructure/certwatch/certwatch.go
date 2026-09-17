@@ -124,7 +124,9 @@ func (s *Service) observe(ctx context.Context, d *domain.Domain) {
 	now := time.Now().UTC()
 	nb, na := leaf.NotBefore.UTC(), leaf.NotAfter.UTC()
 	c := &domain.Certificate{
-		DomainID:   d.ID,
+		NodeID:     &d.NodeID,
+		DomainID:   &d.ID,
+		Name:       d.Name,
 		Source:     source,
 		NotBefore:  &nb,
 		NotAfter:   &na,

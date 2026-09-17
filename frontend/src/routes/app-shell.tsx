@@ -4,6 +4,8 @@ import { can, tokenStore, logout } from "@/api/session";
 
 const NAV = [
   { to: "/", label: "概览" },
+  { to: "/proxy-hosts", label: "网站代理" },
+  { to: "/certificates", label: "SSL 证书" },
   { to: "/nodes", label: "网关节点" },
   { to: "/domains", label: "域名" },
   { to: "/services", label: "服务" },

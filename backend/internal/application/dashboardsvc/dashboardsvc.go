@@ -116,7 +116,7 @@ func (s *Service) Aggregate(ctx context.Context) (*Dashboard, error) {
 		st := certsvc.StatusOf(c, warnDays)
 		if st == "expiring_soon" || st == "expired" {
 			d.ExpiringCerts = append(d.ExpiringCerts, CertSummary{
-				DomainID: c.DomainID, DomainName: s.domainName(ctx, c.DomainID),
+				DomainID: c.GetDomainID(), DomainName: s.domainName(ctx, c.GetDomainID()),
 				Status: st, NotAfter: c.NotAfter, Issuer: c.Issuer,
 			})
 		}

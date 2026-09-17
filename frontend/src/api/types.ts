@@ -284,4 +284,69 @@ export interface DashboardSummary {
   }[];
 }
 
+export interface AssociatedDomain {
+  id: string;
+  name: string;
+}
+
+export interface CertificateDetail {
+  id: string;
+  node_id?: string | null;
+  domain_id?: string | null;
+  name: string;
+  source: string;
+  status: "valid" | "expiring_soon" | "expired" | "missing" | "unknown";
+  not_before?: string | null;
+  not_after?: string | null;
+  days_remaining: number;
+  issuer: string;
+  sans: string[];
+  cert_pem?: string;
+  observed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  associated_domains?: AssociatedDomain[];
+}
+
+export interface CertificateParseResult {
+  valid: boolean;
+  subject: string;
+  issuer: string;
+  sans: string[];
+  not_before?: string | null;
+  not_after?: string | null;
+  days_remaining: number;
+  signature_algorithm: string;
+  key_matches: boolean;
+  error_message?: string;
+}
+
+export interface ProxyHostView {
+  id: string;
+  node_id: string;
+  name: string;
+  domain_id: string;
+  domain_names: string[];
+  forward_scheme: string;
+  forward_host: string;
+  forward_port: number;
+  service_id: string;
+  service_name: string;
+  target_url: string;
+  websockets: boolean;
+  block_common_exploits: boolean;
+  hsts: boolean;
+  force_ssl: boolean;
+  ssl_policy: "off" | "acme_http" | "acme_dns" | "imported";
+  certificate_id?: string | null;
+  certificate_name?: string;
+  cert_status?: string;
+  cert_days_left?: number;
+  status: "draft" | "enabled" | "disabled" | "archived";
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export type List<T> = { items: T[]; page: number; page_size: number; total: number };
+

@@ -11,6 +11,8 @@ import { NodesPage } from "@/features/nodes";
 import { DomainsPage } from "@/features/domains";
 import { ServicesPage } from "@/features/services";
 import { RoutesPage } from "@/features/routes";
+import { ProxyHostsPage } from "@/features/proxyhosts";
+import { CertificatesPage } from "@/features/certificates";
 import { MiddlewaresPage } from "@/features/middlewares";
 import { DeploymentsPage } from "@/features/deployments";
 import { VersionsPage } from "@/features/versions";
@@ -62,6 +64,16 @@ const routes = createRoute({
   path: "/routes",
   component: RoutesPage,
 });
+const proxyHosts = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/proxy-hosts",
+  component: ProxyHostsPage,
+});
+const certificates = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/certificates",
+  component: CertificatesPage,
+});
 const middlewares = createRoute({
   getParentRoute: () => shellRoute,
   path: "/middlewares",
@@ -97,6 +109,8 @@ export const routeTree = RootRoute.addChildren([
   loginRoute,
   shellRoute.addChildren([
     dash,
+    proxyHosts,
+    certificates,
     nodes,
     domains,
     services,

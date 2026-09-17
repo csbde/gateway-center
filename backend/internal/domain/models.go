@@ -343,7 +343,9 @@ func (c *SecretCredential) TableName() string { return "secret_credentials" }
 
 type Certificate struct {
 	ID                  string     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	DomainID            string     `gorm:"type:uuid;not null" json:"domain_id"`
+	NodeID              *string    `gorm:"type:uuid" json:"node_id,omitempty"`
+	DomainID            *string    `gorm:"type:uuid" json:"domain_id,omitempty"`
+	Name                string     `json:"name"`
 	Source              string     `gorm:"not null" json:"source"` // acme/imported
 	NotBefore           *time.Time `json:"not_before,omitempty"`
 	NotAfter            *time.Time `json:"not_after,omitempty"`
@@ -351,10 +353,17 @@ type Certificate struct {
 	Sans                []string   `gorm:"type:text[];serializer:json" json:"sans,omitempty"`
 	Status              string     `gorm:"not null;default:unknown" json:"status"` // valid/expiring_soon/expired/missing/unknown
 	PrivateKeyEncrypted []byte     `gorm:"column:private_key_encrypted" json:"-"`
-	CertPEM             string     `gorm:"column:cert_pem" json:"-"` // 公钥链（下发材料；API 不回传全量）
+	CertPEM             string     `gorm:"column:cert_pem" json:"cert_pem,omitempty"` // 公钥链（下发材料；详情可选展示）
 	ObservedAt          *time.Time `json:"observed_at,omitempty"`
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+}
+
+func (c *Certificate) GetDomainID() string {
+	if c.DomainID != nil {
+		return *c.DomainID
+	}
+	return ""
 }
 
 func (Certificate) TableName() string { return "certificates" }

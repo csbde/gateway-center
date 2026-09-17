@@ -188,7 +188,7 @@ func (r *CertRepo) ByDomain(ctx context.Context, domainID string) (*domain.Certi
 // UpsertObserved：探测任务写入观测结果（用户不可直接编辑，data-model §12）。
 // 已有私钥/公钥材料（imported）保持不被 acme 观测覆盖。
 func (r *CertRepo) UpsertObserved(ctx context.Context, c *domain.Certificate) error {
-	existing, err := r.ByDomain(ctx, c.DomainID)
+	existing, err := r.ByDomain(ctx, c.GetDomainID())
 	if errors.Is(err, ErrNotFound) {
 		return r.db.WithContext(ctx).Create(c).Error
 	}
@@ -211,6 +211,46 @@ func (r *CertRepo) ListAll(ctx context.Context) ([]domain.Certificate, error) {
 	var cs []domain.Certificate
 	err := r.db.WithContext(ctx).Find(&cs).Error
 	return cs, err
+}
+
+func (r *CertRepo) List(ctx context.Context, q ListQuery, status string) ([]domain.Certificate, int64, error) {
+	db := r.db.WithContext(ctx).Model(&domain.Certificate{})
+	if q.NodeID != "" {
+		db = db.Where("node_id = ? OR node_id IS NULL", q.NodeID)
+	}
+	if status != "" {
+		db = db.Where("status = ?", status)
+	}
+	if q.Q != "" {
+		db = db.Where("name ILIKE ? OR issuer ILIKE ? OR sans::text ILIKE ?", "%"+q.Q+"%", "%"+q.Q+"%", "%"+q.Q+"%")
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	order := q.Sort
+	if order == "" {
+		order = "created_at DESC"
+	}
+	db = db.Order(order)
+	if q.PageSize > 0 {
+		db = db.Limit(q.PageSize).Offset((q.Page - 1) * q.PageSize)
+	}
+	var items []domain.Certificate
+	if err := db.Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+}
+
+func (r *CertRepo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&domain.Certificate{}, "id = ?", id).Error
+}
+
+func (r *CertRepo) FindReferencingDomains(ctx context.Context, certID string) ([]domain.Domain, error) {
+	var doms []domain.Domain
+	err := r.db.WithContext(ctx).Where("imported_cert_id = ? AND deleted_at IS NULL", certID).Find(&doms).Error
+	return doms, err
 }
 
 // ---- ReleaseRequest ----

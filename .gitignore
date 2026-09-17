@@ -38,4 +38,4 @@ Thumbs.db
 
 # CodeGraph 本地索引（生成物，不入库）
 .codegraph/
-.claude/settings.local.json
+.claude/

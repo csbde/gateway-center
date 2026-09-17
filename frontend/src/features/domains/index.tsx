@@ -4,9 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { domainsApi } from "@/api/resources";
+import { certificatesApi, domainsApi } from "@/api/resources";
 import { api } from "@/api/client";
-import type { Domain } from "@/api/types";
+import type { CertificateDetail, Domain } from "@/api/types";
 import { can, tokenStore } from "@/api/session";
 import {
   Alert,
@@ -39,6 +39,7 @@ const domainSchema = z.object({
     .regex(/^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i, "需为合法域名，泛域名以 *. 开头"),
   https_policy: z.enum(["off", "acme_http", "acme_dns", "imported"]),
   cert_resolver_ref: z.string().optional(),
+  imported_cert_id: z.string().optional(),
   expiry_warn_days: z.coerce.number().int().min(1).max(365),
 });
 
@@ -49,6 +50,13 @@ const certSchema = z.object({
 
 function DomainForm({ domain, nodeId, onClose }: { domain: Domain | null; nodeId: string; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: certsData } = useQuery({
+    queryKey: ["certificates", nodeId],
+    queryFn: () => certificatesApi.list({ node_id: nodeId, page_size: 100 }),
+    enabled: !!nodeId,
+  });
+  const certs = certsData?.items ?? [];
+
   const {
     register,
     handleSubmit,
@@ -61,9 +69,10 @@ function DomainForm({ domain, nodeId, onClose }: { domain: Domain | null; nodeId
           name: domain.name,
           https_policy: domain.https_policy,
           cert_resolver_ref: domain.cert_resolver_ref ?? "",
+          imported_cert_id: domain.imported_cert_id ?? "",
           expiry_warn_days: domain.expiry_warn_days,
         }
-      : { name: "", https_policy: "off", cert_resolver_ref: "", expiry_warn_days: 21 },
+      : { name: "", https_policy: "off", cert_resolver_ref: "", imported_cert_id: "", expiry_warn_days: 21 },
   });
   const [serverErr, setServerErr] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState("");
@@ -126,7 +135,26 @@ function DomainForm({ domain, nodeId, onClose }: { domain: Domain | null; nodeId
         </>
       )}
       {policy === "imported" && (
-        <p className="text-xs text-muted-foreground">保存后请在列表中点「上传证书」粘贴证书与私钥；私钥加密存储且永不回显。</p>
+        <div className="space-y-2">
+          <Field
+            label="选择已有证书"
+            htmlFor="dom-imported-cert"
+            hint="可直接选择证书库中的已有证书；若留空，保存后可在列表中点「上传证书」单独导入"
+            error={serverErr.imported_cert_id}
+          >
+            <Select id="dom-imported-cert" {...register("imported_cert_id")}>
+              <option value="">-- 选择已有证书（或留空稍后上传） --</option>
+              {certs.map((c: CertificateDetail) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.sans?.slice(0, 2).join(", ")}) [剩余 {c.days_remaining} 天]
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            若尚未导入证书，保存后请在列表中点「上传证书」或在左侧导航「SSL 证书」中录入。
+          </p>
+        </div>
       )}
       <Field label="到期提前预警（天）" htmlFor="dom-warn" error={errors.expiry_warn_days?.message ?? serverErr.expiry_warn_days}>
         <Input id="dom-warn" type="number" {...register("expiry_warn_days")} />

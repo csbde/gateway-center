@@ -100,7 +100,7 @@ func (h *Handler) ImportCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	queryutil.WriteObject(w, http.StatusCreated, map[string]any{
-		"id": c.ID, "domain_id": c.DomainID, "source": c.Source,
+		"id": c.ID, "domain_id": c.GetDomainID(), "name": c.Name, "source": c.Source,
 		"not_before": c.NotBefore, "not_after": c.NotAfter, "issuer": c.Issuer,
 		"sans": c.Sans, "status": c.Status, "private_key": "****",
 	})

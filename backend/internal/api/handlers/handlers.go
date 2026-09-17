@@ -22,6 +22,7 @@ import (
 	"gateway-center/backend/internal/application/mwsvc"
 	"gateway-center/backend/internal/application/nodesvc"
 	"gateway-center/backend/internal/application/pipeline"
+	"gateway-center/backend/internal/application/proxyhostsvc"
 	"gateway-center/backend/internal/application/routesvc"
 	"gateway-center/backend/internal/application/servicesvc"
 	"gateway-center/backend/internal/application/settingsvc"
@@ -40,6 +41,7 @@ type Handler struct {
 	Dash        *dashboardsvc.Service
 	Services    *servicesvc.Service
 	Routes      *routesvc.Service
+	ProxyHosts  *proxyhostsvc.Service
 	Middlewares *mwsvc.Service
 	Versions    *pipeline.VersionService
 	Deploys     *pipeline.DeployService

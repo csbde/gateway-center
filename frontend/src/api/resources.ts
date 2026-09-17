@@ -2,6 +2,8 @@
 import { api } from "./client";
 import type {
   AuditLog,
+  CertificateDetail,
+  CertificateParseResult,
   CertificateView,
   ConfigVersion,
   CredentialVerifyResult,
@@ -15,6 +17,7 @@ import type {
   Node,
   NodeState,
   PlatformSettings,
+  ProxyHostView,
   ReleaseRequest,
   Route,
   RouteView,
@@ -152,3 +155,27 @@ export const releaseRequestsApi = {
     api.post<ReleaseRequest>(`/release-requests/${id}/reject`, { comment }),
   cancel: (id: string) => api.post<ReleaseRequest>(`/release-requests/${id}/cancel`),
 };
+
+// ---- certificates (向 NPM 学习独立证书资产库) ----
+export const certificatesApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<CertificateDetail>>("/certificates", q),
+  get: (id: string) => api.get<CertificateDetail>(`/certificates/${id}`),
+  create: (body: { name: string; cert_pem: string; key_pem: string; node_id?: string }) =>
+    api.post<CertificateDetail>("/certificates", body),
+  parse: (body: { cert_pem: string; key_pem?: string }) =>
+    api.post<CertificateParseResult>("/certificates/parse", body),
+  probe: (id: string) => api.post<CertificateDetail>(`/certificates/${id}/probe`),
+  remove: (id: string) => api.delete<undefined>(`/certificates/${id}`),
+};
+
+// ---- proxy hosts (向 NPM 学习网站代理一体化管理) ----
+export const proxyHostsApi = {
+  list: (q?: Record<string, string | number>) => api.get<List<ProxyHostView>>("/proxy-hosts", q),
+  get: (id: string) => api.get<ProxyHostView>(`/proxy-hosts/${id}`),
+  create: (body: Record<string, unknown>) => api.post<ProxyHostView>("/proxy-hosts", body),
+  update: (id: string, body: Record<string, unknown>) => api.put<ProxyHostView>(`/proxy-hosts/${id}`, body),
+  enable: (id: string) => api.post<ProxyHostView>(`/proxy-hosts/${id}/enable`),
+  disable: (id: string) => api.post<ProxyHostView>(`/proxy-hosts/${id}/disable`),
+  remove: (id: string) => api.delete<undefined>(`/proxy-hosts/${id}`),
+};
+

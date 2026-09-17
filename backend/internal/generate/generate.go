@@ -44,18 +44,34 @@ func Generate(snap *Snapshot) ([]Artifact, error) {
 		}
 		out = append(out, Artifact{Path: "middlewares/" + m.Name + ".yml", Content: body, Mode: 0o644})
 	}
-	for _, c := range snap.Certificates {
-		out = append(out, Artifact{Path: "tls/" + c.Name + ".pem", Content: []byte(c.CertPEM), Mode: 0o644})
-		// 私钥以引用形式入库（artifact_files 脱敏），Deploy 时解密写同目录 .key（0600）
-		out = append(out, Artifact{Path: "tls/" + c.Name + ".key", Content: []byte(SecretRefPrefix + c.PrivateKeyRef), Mode: 0o600})
+	if len(snap.Certificates) > 0 {
+		var certItems []map[string]string
+		for _, c := range snap.Certificates {
+			out = append(out, Artifact{Path: "tls/" + c.Name + ".pem", Content: []byte(c.CertPEM), Mode: 0o644})
+			// 私钥以引用形式入库（artifact_files 脱敏），Deploy 时解密写同目录 .key（0600）
+			out = append(out, Artifact{Path: "tls/" + c.Name + ".key", Content: []byte(SecretRefPrefix + c.PrivateKeyRef), Mode: 0o600})
+			certItems = append(certItems, map[string]string{
+				"certFile": "/etc/traefik/dynamic/tls/" + c.Name + ".pem",
+				"keyFile":  "/etc/traefik/dynamic/tls/" + c.Name + ".key",
+			})
+		}
+		tlsYAML, err := yaml.Marshal(map[string]any{
+			"tls": map[string]any{
+				"certificates": certItems,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("tls certificates yaml: %w", err)
+		}
+		out = append(out, Artifact{Path: "tls/certificates.yml", Content: tlsYAML, Mode: 0o644})
 	}
 
-	// 产物零明文 secret 断言（R7/R8）：除 .key 引用占位外，任何文件不得含 PEM 头。
+	// 产物零明文 secret 断言（R7/R8）：除 .key 引用占位与 .pem 公钥外，任何文件不得含私钥头。
 	for _, a := range out {
-		if strings.HasSuffix(a.Path, ".key") {
+		if strings.HasSuffix(a.Path, ".key") || strings.HasSuffix(a.Path, ".pem") {
 			continue
 		}
-		if strings.Contains(string(a.Content), "-----BEGIN") {
+		if strings.Contains(string(a.Content), "PRIVATE KEY") {
 			return nil, fmt.Errorf("产物 %s 含明文私钥，拒绝入库（宪法 VIII）", a.Path)
 		}
 	}

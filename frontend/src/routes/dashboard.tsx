@@ -7,7 +7,7 @@ import { dashboardApi } from "@/api/resources";
 import { humanError, StatusBadge } from "@/features/common";
 import { StatePanel } from "@/features/nodes/StatePanel";
 
-type RouteTo = "/" | "/nodes" | "/domains" | "/services" | "/routes" | "/middlewares" | "/deployments";
+type RouteTo = "/" | "/proxy-hosts" | "/certificates" | "/nodes" | "/domains" | "/services" | "/routes" | "/middlewares" | "/deployments";
 
 function StatCard({
   label,
@@ -35,7 +35,7 @@ function StatCard({
   return (
     <Card className={cls}>
       {to ? (
-        <Link to={to} className="block">
+        <Link to={to} className="block hover:opacity-80 transition-opacity">
           {body}
         </Link>
       ) : (
@@ -60,10 +60,26 @@ export function DashboardPage() {
   const recent = d.recent_deployments ?? [];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">概览</h1>
-        <p className="text-sm text-muted-foreground">平台纳管资源与网关运行状态实时汇总。</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">概览</h1>
+          <p className="text-sm text-muted-foreground">平台纳管资源与网关运行状态实时汇总。</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/proxy-hosts"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            快速代理网站
+          </Link>
+          <Link
+            to="/certificates"
+            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          >
+            管理 SSL 证书
+          </Link>
+        </div>
       </div>
 
       {/* 网关运行状态（US5/T074：真实探测计数，非 enabled 估算） */}
